@@ -6,6 +6,8 @@
 - Package CommonJS runtime code and TypeScript declarations for Node.js 22/24 and Sequelize 7.0.0-alpha.48.
 - Add isolated SQLite behavior/type checks, a packed-consumer smoke using the README example, and CI.
 - Apply the project coding conventions to library code, README examples, tests, and package verification; enforce formatting through the normal checks.
+- Show WRAP-shaped factory modules and focused Vitest usage in the README, compiling and running every documented TypeScript example against the packed artifact.
+- Separate returned-model state, association state, and per-table persistence expectations into focused behavioral tests.
 - Preserve Apache-2.0 attribution for extracted material alongside MIT terms for new original work.
 
 This version identifies the initial publish-ready artifact; it does not assert registry publication.
