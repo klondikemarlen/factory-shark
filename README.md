@@ -17,18 +17,17 @@ This complete example uses SQLite only to make the persistence boundary runnable
 ```typescript
 import assert from "node:assert/strict"
 
-import {
-  type CreationOptional,
-  type InferAttributes,
-  type InferCreationAttributes,
-  type NonAttribute,
-  DataTypes,
-  Model,
-  Sequelize,
+import type {
+  CreationOptional,
+  InferAttributes,
+  InferCreationAttributes,
+  NonAttribute,
 } from "@sequelize/core"
+import { DataTypes, Model, Sequelize } from "@sequelize/core"
 import { SqliteDialect } from "@sequelize/sqlite3"
 
-import { type FactoryParams, FactoryShark } from "factory-shark"
+import type { FactoryParams } from "factory-shark"
+import { FactoryShark } from "factory-shark"
 
 class Organization extends Model<
   InferAttributes<Organization>,
