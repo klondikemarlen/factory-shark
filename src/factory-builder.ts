@@ -94,11 +94,20 @@ export class FactoryBuilder<T extends Model, TransientParams = Record<string, ne
   }
 
   params(params: FactoryParams<T>): FactoryInterface<T, TransientParams> {
-    return this.clone({ defaultParams: { ...this.defaultParams, ...params } })
+    return this.clone({
+      defaultParams: {
+        ...this.defaultParams,
+        ...params,
+      },
+    })
   }
 
   transient(params: Partial<TransientParams>): FactoryInterface<T, TransientParams> {
-    const mergedTransientParams = { ...this.defaultTransientParams, ...params } as TransientParams
+    const mergedTransientParams = {
+      ...this.defaultTransientParams,
+      ...params,
+    } as TransientParams
+
     return this.clone({ defaultTransientParams: mergedTransientParams })
   }
 
@@ -130,7 +139,10 @@ export class FactoryBuilder<T extends Model, TransientParams = Record<string, ne
       factoryContext.getParams()
     )
 
-    return { attributeBuilder, associationManager }
+    return {
+      attributeBuilder,
+      associationManager,
+    }
   }
 
   private clone(

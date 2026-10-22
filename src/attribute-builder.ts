@@ -2,13 +2,13 @@
 // Apache-2.0 terms and original attribution are preserved.
 import type { CreationAttributes, Model } from "@sequelize/core"
 
-import {
-  type AfterCreateFn,
-  type AssociateFunction,
-  type BeforeCreateFn,
-  type FactoryParams,
-  type GeneratorFn,
-  type GeneratorReturn,
+import type {
+  AfterCreateFn,
+  AssociateFunction,
+  BeforeCreateFn,
+  FactoryParams,
+  GeneratorFn,
+  GeneratorReturn,
 } from "./types"
 
 export type AttributeBuilderOptions<T extends Model, TransientParams> = {

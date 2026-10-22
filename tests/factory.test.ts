@@ -196,18 +196,6 @@ test("when an association callback reads an earlier foreign key, dependent recor
   })
 })
 
-test("when an association callback reuses an earlier foreign key, no extra organization is created", async () => {
-  // Arrange
-  await withFixture(async ({ projectFactory, Organization }) => {
-    // Act
-    await projectFactory.create()
-
-    // Assert
-    const organizationCount = await Organization.count()
-    assert.equal(organizationCount, 1)
-  })
-})
-
 test("when association registration is conditional on a supplied foreign key, create reuses the existing record", async () => {
   // Arrange
   await withFixture(

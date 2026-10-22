@@ -1,5 +1,4 @@
 // Adapted from WRAP FactoryShark tests at 24ce6097a1f2c4d87a09dddcec88e33b8859782b under Apache-2.0; rewritten for standalone SQLite fixtures.
-import { DataTypes, Model, Sequelize } from "@sequelize/core"
 import type {
   CreationOptional,
   ForeignKey,
@@ -8,9 +7,11 @@ import type {
   ModelStatic,
   NonAttribute,
 } from "@sequelize/core"
+import { DataTypes, Model, Sequelize } from "@sequelize/core"
 import { SqliteDialect } from "@sequelize/sqlite3"
 
-import { FactoryShark, type FactoryInterface } from "../src/index.js"
+import { FactoryShark } from "../src/index.js"
+import type { FactoryInterface } from "../src/index.js"
 
 export class OrganizationRecord extends Model<
   InferAttributes<OrganizationRecord>,
@@ -97,6 +98,7 @@ export function createFixture(): Fixture {
     },
     { sequelize }
   )
+
   User.init(
     {
       id: {
@@ -111,6 +113,7 @@ export function createFixture(): Fixture {
     },
     { sequelize }
   )
+
   Category.init(
     {
       id: {
@@ -129,6 +132,7 @@ export function createFixture(): Fixture {
     },
     { sequelize }
   )
+
   Project.init(
     {
       id: {

@@ -43,6 +43,7 @@ export class FactoryContext<T extends Model = Model> {
   ): A => {
     const foreignKeyName = this.resolveForeignKeyName(name)
     let buildParams: FactoryParams<A> | undefined
+
     if (typeof overrides === "function") {
       buildParams = overrides(this.params)
     } else {
