@@ -1,121 +1,247 @@
-// Adapted from upstream FactoryShark acceptance tests at 24ce6097a1f2c4d87a09dddcec88e33b8859782b; scenarios use standalone node:test and real SQLite persistence.
+// Adapted from WRAP FactoryShark acceptance tests at 24ce6097a1f2c4d87a09dddcec88e33b8859782b under Apache-2.0; rewritten as isolated standalone scenarios.
 import assert from "node:assert/strict"
 import { test } from "node:test"
 
-import { FactoryShark } from "../src/index.js"
-import { createFixture, type Fixture, type ProjectRecord } from "./support.js"
+import { isUndefined } from "lodash"
 
-async function withFixture(run: (fixture: Fixture) => Promise<void>) {
+import { AssociationNotFoundError, FactoryShark } from "../src/index.js"
+import { createFixture } from "./support.js"
+import type { Fixture, ProjectRecord } from "./support.js"
+
+type FixtureScenario = (fixture: Fixture) => Promise<void>
+
+type ProjectOptions = {
+  prefix?: string
+  suffix?: string
+}
+
+async function withFixture(runScenario: FixtureScenario) {
   const fixture = createFixture()
+
   try {
-    await fixture.sequelize.sync({ force: true })
-    await run(fixture)
+    await fixture.sequelize.sync({
+      force: true,
+    })
+    await runScenario(fixture)
   } finally {
     await fixture.sequelize.close()
   }
 }
 
-test("when build is called, it returns an unsaved model without creating associations", async () => {
+test("when build is called, it returns an unsaved model", async () => {
   // Arrange
-  await withFixture(async ({ projectFactory, Organization, Category }) => {
+  await withFixture(async ({ projectFactory }) => {
     // Act
     const project = projectFactory.build()
 
     // Assert
     assert.equal(project.isNewRecord, true)
-    assert.equal(await Organization.count(), 0)
-    assert.equal(await Category.count(), 0)
   })
 })
 
-test("when create is called, it persists the model and independently created associations", async () => {
+test("when build evaluates an association graph, no records are persisted", async () => {
   // Arrange
   await withFixture(async ({ projectFactory, Project, Organization, Category, User }) => {
+    // Act
+    projectFactory.build()
+
+    // Assert
+    const projectCount = await Project.count()
+    assert.equal(projectCount, 0)
+
+    const organizationCount = await Organization.count()
+    assert.equal(organizationCount, 0)
+
+    const categoryCount = await Category.count()
+    assert.equal(categoryCount, 0)
+
+    const userCount = await User.count()
+    assert.equal(userCount, 0)
+  })
+})
+
+test("when create is called, it returns a saved model", async () => {
+  // Arrange
+  await withFixture(async ({ projectFactory }) => {
     // Act
     const project = await projectFactory.create()
 
     // Assert
     assert.equal(project.isNewRecord, false)
-    assert.equal(await Project.count(), 1)
-    assert.equal(await Organization.count(), 1)
-    assert.equal(await Category.count(), 1)
-    assert.equal(await User.count(), 1)
   })
 })
 
-test("when a foreign key is overridden, that association is not created but other associations are", async () => {
-  await withFixture(async ({ organizationFactory, projectFactory, Organization, Category, User }) => {
-    // Arrange
-    const organization = await organizationFactory.create()
-
-    // Act
-    const project = await projectFactory.create({ organizationId: organization.id })
-
-    // Assert
-    assert.equal(project.organizationId, organization.id)
-    assert.equal(await Organization.count(), 1)
-    assert.equal(await Category.count(), 1)
-    assert.equal(await User.count(), 1)
-  })
-})
-
-test("when a prebuilt association is supplied, create uses it without creating a replacement", async () => {
-  await withFixture(async ({ organizationFactory, projectFactory, Organization }) => {
-    // Arrange
-    const organization = await organizationFactory.create()
-
-    // Act
-    const project = await projectFactory.associations({ organization }).create()
-
-    // Assert
-    assert.equal(project.organizationId, organization.id)
-    assert.equal(await Organization.count(), 1)
-  })
-})
-
-test("when an association callback uses an earlier association key, dependent records share the key", async () => {
+test("when create is called, the parent record is persisted", async () => {
   // Arrange
-  await withFixture(async ({ projectFactory, Category, Organization }) => {
+  await withFixture(async ({ projectFactory, Project }) => {
+    // Act
+    const project = await projectFactory.create()
+
+    // Assert
+    const persistedProject = await Project.findByPk(project.id)
+    assert.equal(persistedProject?.title, "Project 1")
+  })
+})
+
+test("when create evaluates an association graph, all associated records are persisted", async () => {
+  // Arrange
+  await withFixture(async ({ projectFactory, Organization, Category, User }) => {
+    // Act
+    await projectFactory.create()
+
+    // Assert
+    const organizationCount = await Organization.count()
+    assert.equal(organizationCount, 1)
+
+    const categoryCount = await Category.count()
+    assert.equal(categoryCount, 1)
+
+    const userCount = await User.count()
+    assert.equal(userCount, 1)
+  })
+})
+
+test("when a foreign key is supplied, create assigns it to the parent", async () => {
+  // Arrange
+  await withFixture(async ({ organizationFactory, projectFactory }) => {
+    const organization = await organizationFactory.create()
+
+    // Act
+    const project = await projectFactory.create({
+      organizationId: organization.id,
+    })
+
+    // Assert
+    assert.equal(project.organizationId, organization.id)
+  })
+})
+
+test("when a foreign key is supplied, create does not duplicate that association", async () => {
+  // Arrange
+  await withFixture(async ({ organizationFactory, projectFactory, Organization }) => {
+    const organization = await organizationFactory.create()
+
+    // Act
+    await projectFactory.create({
+      organizationId: organization.id,
+    })
+
+    // Assert
+    const organizationCount = await Organization.count()
+    assert.equal(organizationCount, 1)
+  })
+})
+
+test("when a foreign key is supplied, create still persists the other associations", async () => {
+  // Arrange
+  await withFixture(async ({ organizationFactory, projectFactory, Category, User }) => {
+    const organization = await organizationFactory.create()
+
+    // Act
+    await projectFactory.create({
+      organizationId: organization.id,
+    })
+
+    // Assert
+    const categoryCount = await Category.count()
+    assert.equal(categoryCount, 1)
+
+    const userCount = await User.count()
+    assert.equal(userCount, 1)
+  })
+})
+
+test("when a persisted association is supplied, create uses its foreign key", async () => {
+  // Arrange
+  await withFixture(async ({ organizationFactory, projectFactory }) => {
+    const organization = await organizationFactory.create()
+    const existingOrganizationFactory = projectFactory.associations({
+      organization,
+    })
+
+    // Act
+    const project = await existingOrganizationFactory.create()
+
+    // Assert
+    assert.equal(project.organizationId, organization.id)
+  })
+})
+
+test("when a persisted association is supplied, create does not replace it", async () => {
+  // Arrange
+  await withFixture(async ({ organizationFactory, projectFactory, Organization }) => {
+    const organization = await organizationFactory.create()
+    const existingOrganizationFactory = projectFactory.associations({
+      organization,
+    })
+
+    // Act
+    await existingOrganizationFactory.create()
+
+    // Assert
+    const organizationCount = await Organization.count()
+    assert.equal(organizationCount, 1)
+  })
+})
+
+test("when an association callback reads an earlier foreign key, dependent records share it", async () => {
+  // Arrange
+  await withFixture(async ({ projectFactory, Category }) => {
     // Act
     const project = await projectFactory.create()
 
     // Assert
     const category = await Category.findByPk(project.categoryId)
     assert.equal(category?.organizationId, project.organizationId)
-    assert.equal(await Organization.count(), 1)
   })
 })
 
-test("when an association callback is conditional on a supplied foreign key, it avoids duplicate creation", async () => {
-  await withFixture(async ({ organizationFactory, Project, Category, User, Organization }) => {
-    // Arrange
-    const organization = await organizationFactory.create()
-    const conditionalFactory = FactoryShark.define(Project, ({ associate, sequence, params }) => {
-      if (params.organizationId === undefined) associate("organization", organizationFactory)
-      associate("category", FactoryShark.define(Category, ({ sequence: categorySequence }) => ({
-        name: `Category ${categorySequence}`,
+test("when association registration is conditional on a supplied foreign key, create reuses the existing record", async () => {
+  // Arrange
+  await withFixture(
+    async ({ organizationFactory, categoryFactory, userFactory, Project, Organization }) => {
+      const organization = await organizationFactory.create()
+      const conditionalProjectFactory = FactoryShark.define(
+        Project,
+        ({ associate, sequence, params }) => {
+          if (isUndefined(params.organizationId)) {
+            associate("organization", organizationFactory)
+          }
+
+          associate("category", categoryFactory, {
+            organizationId: organization.id,
+          })
+          associate("creator", userFactory)
+
+          return {
+            title: `Conditional ${sequence}`,
+          }
+        }
+      )
+
+      // Act
+      await conditionalProjectFactory.create({
         organizationId: organization.id,
-      })))
-      associate("creator", FactoryShark.define(User, ({ sequence: userSequence }) => ({ name: `User ${userSequence}` })))
-      return { title: `Conditional ${sequence}` }
+      })
+
+      // Assert
+      const organizationCount = await Organization.count()
+      assert.equal(organizationCount, 1)
+    }
+  )
+})
+
+test("when call parameters conflict with factory defaults, call parameters take precedence", async () => {
+  // Arrange
+  await withFixture(async ({ projectFactory }) => {
+    const defaultTitleFactory = projectFactory.params({
+      title: "Factory default",
     })
 
     // Act
-    const project = await conditionalFactory.create({ organizationId: organization.id })
-
-    // Assert
-    assert.equal(project.organizationId, organization.id)
-    assert.equal(await Organization.count(), 1)
-  })
-})
-
-test("when explicit attributes and factory defaults conflict, call parameters take precedence", async () => {
-  await withFixture(async ({ projectFactory }) => {
-    // Arrange
-    const factory = projectFactory.params({ title: "Factory default" })
-
-    // Act
-    const project = await factory.create({ title: "Call override" })
+    const project = await defaultTitleFactory.create({
+      title: "Call override",
+    })
 
     // Assert
     assert.equal(project.title, "Call override")
@@ -123,152 +249,251 @@ test("when explicit attributes and factory defaults conflict, call parameters ta
 })
 
 test("when transient defaults are chained, both defaults affect generated attributes", async () => {
+  // Arrange
   await withFixture(async ({ Project }) => {
-    // Arrange
-    type ProjectOptions = { prefix?: string; suffix?: string }
-    const factory = FactoryShark.define<ProjectRecord, ProjectOptions>(Project, ({ sequence, transient }) => ({
-      title: `${transient.prefix ?? ""}Project ${sequence}${transient.suffix ?? ""}`,
-    })).transient({ prefix: "[" }).transient({ suffix: "]" })
+    const projectFactory = FactoryShark.define<ProjectRecord, ProjectOptions>(
+      Project,
+      ({ sequence, transient }) => {
+        const prefix = transient.prefix ?? ""
+        const suffix = transient.suffix ?? ""
+
+        return {
+          title: `${prefix}Project ${sequence}${suffix}`,
+        }
+      }
+    )
+    const prefixedFactory = projectFactory.transient({
+      prefix: "[",
+    })
+    const bracketedFactory = prefixedFactory.transient({
+      suffix: "]",
+    })
 
     // Act
-    const project = factory.build()
+    const project = bracketedFactory.build()
 
     // Assert
     assert.equal(project.title, "[Project 1]")
   })
 })
 
-test("when factory sequence values are evaluated, build and create use increasing values", async () => {
+test("when one factory evaluates build then create, its sequence increases across both", async () => {
   // Arrange
   await withFixture(async ({ Organization }) => {
-    const sequenceFactory = FactoryShark.define(Organization, ({ sequence }) => ({ name: `Organization ${sequence}` }))
+    const organizationFactory = FactoryShark.define(Organization, ({ sequence }) => ({
+      name: `Organization ${sequence}`,
+    }))
 
     // Act
-    const built = sequenceFactory.build()
-    const created = await sequenceFactory.create()
+    const builtOrganization = organizationFactory.build()
+    const createdOrganization = await organizationFactory.create()
 
     // Assert
-    assert.equal(built.name, "Organization 1")
-    assert.equal(created.name, "Organization 2")
-    assert.equal(await Organization.count(), 1)
+    assert.equal(builtOrganization.name, "Organization 1")
+    assert.equal(createdOrganization.name, "Organization 2")
   })
 })
 
-test("when a generator registers an association, it is evaluated once per build or create", async () => {
+test("when build registers associations, the parent generator runs once", async () => {
   // Arrange
-  await withFixture(async ({ organizationFactory, Project, Category, User }) => {
-    let evaluations = 0
-    const factory = FactoryShark.define(Project, ({ sequence, associate }) => {
-      evaluations += 1
+  await withFixture(async ({ organizationFactory, categoryFactory, userFactory, Project }) => {
+    let generatorEvaluations = 0
+    const projectFactory = FactoryShark.define(Project, ({ sequence, associate }) => {
+      generatorEvaluations += 1
       associate("organization", organizationFactory)
-      associate("category", FactoryShark.define(Category, ({ sequence: categorySequence }) => ({
-        name: `Category ${categorySequence}`,
-        organizationId: 1,
-      })))
-      associate("creator", FactoryShark.define(User, ({ sequence: userSequence }) => ({ name: `User ${userSequence}` })))
-      return { title: `Project ${sequence}` }
+      associate("category", categoryFactory, ({ organizationId }) => ({
+        organizationId,
+      }))
+      associate("creator", userFactory)
+
+      return {
+        title: `Project ${sequence}`,
+      }
     })
 
     // Act
-    factory.build()
-    await factory.create()
+    projectFactory.build()
 
     // Assert
-    assert.equal(evaluations, 2)
+    assert.equal(generatorEvaluations, 1)
   })
 })
 
-test("when beforeCreate runs, resolved foreign keys are available before persistence", async () => {
+test("when create registers associations, the parent generator runs once", async () => {
+  // Arrange
+  await withFixture(async ({ organizationFactory, categoryFactory, userFactory, Project }) => {
+    let generatorEvaluations = 0
+    const projectFactory = FactoryShark.define(Project, ({ sequence, associate }) => {
+      generatorEvaluations += 1
+      associate("organization", organizationFactory)
+      associate("category", categoryFactory, ({ organizationId }) => ({
+        organizationId,
+      }))
+      associate("creator", userFactory)
+
+      return {
+        title: `Project ${sequence}`,
+      }
+    })
+
+    // Act
+    await projectFactory.create()
+
+    // Assert
+    assert.equal(generatorEvaluations, 1)
+  })
+})
+
+test("when beforeCreate runs, it receives the resolved foreign key", async () => {
+  // Arrange
   await withFixture(async ({ projectFactory }) => {
-    // Arrange
-    let resolvedOrganizationId: number | undefined
-    const factory = projectFactory.beforeCreate((project) => {
-      resolvedOrganizationId = project.organizationId
-      project.title = `Organization ${project.organizationId}`
+    let observedOrganizationId: number | undefined
+    const observedFactory = projectFactory.beforeCreate((project) => {
+      observedOrganizationId = project.organizationId
     })
 
     // Act
-    const project = await factory.create()
+    const project = await observedFactory.create()
 
     // Assert
-    assert.equal(resolvedOrganizationId, project.organizationId)
-    assert.equal(project.title, `Organization ${project.organizationId}`)
+    assert.equal(observedOrganizationId, project.organizationId)
   })
 })
 
-test("when beforeCreate throws, create rejects with the hook error", async () => {
-  await withFixture(async ({ Project }) => {
-    // Arrange
-    const factory = FactoryShark.define(Project, ({ sequence }) => ({ title: `Project ${sequence}` }))
-      .beforeCreate(() => { throw new Error("before hook failed") })
+test("when beforeCreate changes an attribute, the changed value is persisted", async () => {
+  // Arrange
+  await withFixture(async ({ projectFactory, Project }) => {
+    const renamedFactory = projectFactory.beforeCreate((project) => {
+      project.title = "Changed before saving"
+    })
+
+    // Act
+    const project = await renamedFactory.create()
+
+    // Assert
+    const persistedProject = await Project.findByPk(project.id)
+    assert.equal(persistedProject?.title, "Changed before saving")
+  })
+})
+
+test("when beforeCreate throws, create propagates the hook error", async () => {
+  // Arrange
+  await withFixture(async ({ projectFactory }) => {
+    const failingFactory = projectFactory.beforeCreate(() => {
+      throw new Error("before hook failed")
+    })
 
     // Act / Assert
-    await assert.rejects(factory.create(), /before hook failed/)
-    assert.equal(await Project.count(), 0)
+    await assert.rejects(failingFactory.create(), /before hook failed/)
   })
 })
 
-test("when afterCreate runs, it receives the saved model and runs after beforeCreate", async () => {
-  await withFixture(async ({ projectFactory }) => {
-    // Arrange
-    const events: string[] = []
-    const factory = projectFactory
-      .beforeCreate((project) => { events.push(`before:${project.isNewRecord}`) })
-      .afterCreate(async (project) => { events.push(`after:${project.isNewRecord}:${project.id}`) })
+test("when beforeCreate throws, the parent record is not saved", async () => {
+  // Arrange
+  await withFixture(async ({ projectFactory, Project }) => {
+    const failingFactory = projectFactory.beforeCreate(() => {
+      throw new Error("before hook failed")
+    })
 
     // Act
-    const project = await factory.create()
+    await assert.rejects(failingFactory.create(), /before hook failed/)
 
     // Assert
-    assert.deepEqual(events, ["before:true", `after:false:${project.id}`])
+    const projectCount = await Project.count()
+    assert.equal(projectCount, 0)
   })
 })
 
-test("when a factory is built, create hooks do not run", async () => {
+test("when create runs hooks, beforeCreate sees an unsaved model and afterCreate sees a saved model", async () => {
+  // Arrange
   await withFixture(async ({ projectFactory }) => {
-    // Arrange
-    let calls = 0
-    const factory = projectFactory.beforeCreate(() => { calls += 1 }).afterCreate(async () => { calls += 1 })
+    const hookEvents: string[] = []
+    const observedFactory = projectFactory
+      .beforeCreate((project) => {
+        hookEvents.push(`before:${project.isNewRecord}`)
+      })
+      .afterCreate(async (project) => {
+        hookEvents.push(`after:${project.isNewRecord}:${project.id}`)
+      })
 
     // Act
-    factory.build()
+    const project = await observedFactory.create()
 
     // Assert
-    assert.equal(calls, 0)
+    assert.deepEqual(hookEvents, ["before:true", `after:false:${project.id}`])
   })
 })
 
-test("when an invalid association name is configured, build reports the invalid association", async () => {
+test("when build is called, create hooks do not run", async () => {
+  // Arrange
+  await withFixture(async ({ projectFactory }) => {
+    let hookCalls = 0
+    const observedFactory = projectFactory
+      .beforeCreate(() => {
+        hookCalls += 1
+      })
+      .afterCreate(async () => {
+        hookCalls += 1
+      })
+
+    // Act
+    observedFactory.build()
+
+    // Assert
+    assert.equal(hookCalls, 0)
+  })
+})
+
+test("when an unknown association is registered, build raises AssociationNotFoundError", async () => {
+  // Arrange
   await withFixture(async ({ organizationFactory, Project }) => {
-    // Arrange
-    const factory = FactoryShark.define(Project, ({ associate }) => {
-      // @ts-expect-error Runtime behavior is covered for invalid JavaScript consumers.
+    const invalidFactory = FactoryShark.define(Project, ({ associate }) => {
+      // @ts-expect-error Invalid JavaScript consumers still receive a useful runtime error.
       associate("missing", organizationFactory)
-      return { title: "Invalid association test" }
+
+      return {
+        title: "Invalid association test",
+      }
     })
 
     // Act / Assert
-    assert.throws(() => factory.build(), /missing/i)
-    assert.equal(await Project.count(), 0)
+    assert.throws(() => invalidFactory.build(), AssociationNotFoundError)
   })
 })
 
-// Type-only scenarios are compiled with the suite's separate tsc pass.
+// These compile-only scenarios never run; tsc fails if invalid inputs become accepted.
 export function checkFactoryTypes({ Project, User }: Fixture) {
-  const typedFactory = FactoryShark.define(Project, () => ({ title: "Typed project" }))
-  typedFactory.create({ title: "Allowed", organizationId: 1 })
+  const projectFactory = FactoryShark.define(Project, () => ({
+    title: "Typed project",
+  }))
+
+  projectFactory.create({
+    title: "Allowed",
+    organizationId: 1,
+  })
+
   // @ts-expect-error Unknown factory parameter keys are rejected.
-  typedFactory.create({ unknown: true })
-  // @ts-expect-error Association parameters require an instance of the associated model.
-  typedFactory.create({ organization: "not an organization" })
+  projectFactory.create({ unknown: true })
+
+  // @ts-expect-error Association parameters require a model instance.
+  projectFactory.create({ organization: "not an organization" })
+
   FactoryShark.define(Project, () => ({
     title: "Valid generator result",
-    // @ts-expect-error Generator excess properties are rejected.
+    // @ts-expect-error Excess generator properties are rejected.
     notAProjectField: true,
   }))
+
+  const userFactory = FactoryShark.define(User, () => ({
+    name: "Typed user",
+  }))
+
   FactoryShark.define(Project, ({ associate }) => {
     // @ts-expect-error Non-association names are rejected.
-    associate("notAnAssociation", FactoryShark.define(User, () => ({ name: "Typed user" })))
-    return { title: "Typed association" }
+    associate("notAnAssociation", userFactory)
+
+    return {
+      title: "Typed association",
+    }
   })
 }

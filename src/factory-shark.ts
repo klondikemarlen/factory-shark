@@ -1,19 +1,19 @@
 // Originally from WRAP's FactoryShark; extracted and modified for standalone distribution.
 // Apache-2.0 terms and original attribution are preserved.
-import { type Model, type ModelStatic } from "@sequelize/core"
+import type { Model, ModelStatic } from "@sequelize/core"
 
 import { FactoryBuilder } from "./factory-builder"
-import {
-  type AfterCreateFn,
-  type BeforeCreateFn,
-  type FactoryInterface,
-  type FactoryParams,
-  type GeneratorFn,
-  type GeneratorReturn,
-  type StrictGeneratorFn,
+import type {
+  AfterCreateFn,
+  BeforeCreateFn,
+  FactoryInterface,
+  FactoryParams,
+  GeneratorFn,
+  GeneratorReturn,
+  StrictGeneratorFn,
 } from "./types"
 
-export { type GeneratorFn } from "./types"
+export type { GeneratorFn } from "./types"
 
 /**
  * FactoryShark for creating Sequelize models with associations.
@@ -25,41 +25,12 @@ export { type GeneratorFn } from "./types"
  * - Transient attributes for afterCreate hooks
  * - After-create hooks
  *
- * @example
- * ```typescript
- * import { FactoryShark } from "factory-shark"
- * import { User, Organization } from "./models"
- *
- * // Basic factory definition
- * const userFactory = FactoryShark.define(User, ({ sequence, associate }) => {
- *   associate("organization", organizationFactory)
- *
- *   return {
- *     firstName: `User${sequence}`,
- *     lastName: "Test",
- *     email: `user${sequence}@example.com`,
- *   }
- * })
- *
- * // Create an instance
- * const user = await userFactory.create()
- *
- * // Build without saving
- * const builtUser = userFactory.build()
- *
- * // Override attributes
- * const customUser = await userFactory.create({
- *   firstName: "Custom",
- *   email: "custom@example.com"
- * })
- *
- * // Use transient parameters
- * const factoryWithTransient = userFactory.transient({ roles: ["admin"] })
- * ```
+ * See the executable usage example in the project README.
  */
-export class FactoryShark<T extends Model, TransientParams = Record<string, never>>
-  implements FactoryInterface<T, TransientParams>
-{
+export class FactoryShark<
+  T extends Model,
+  TransientParams = Record<string, never>,
+> implements FactoryInterface<T, TransientParams> {
   private builder: FactoryBuilder<T, TransientParams>
   public readonly modelClass: ModelStatic<T>
 

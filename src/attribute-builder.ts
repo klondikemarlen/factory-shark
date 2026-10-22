@@ -1,14 +1,14 @@
 // Originally from WRAP's FactoryShark; extracted and modified for standalone distribution.
 // Apache-2.0 terms and original attribution are preserved.
-import { type CreationAttributes, type Model } from "@sequelize/core"
+import type { CreationAttributes, Model } from "@sequelize/core"
 
-import {
-  type AfterCreateFn,
-  type AssociateFunction,
-  type BeforeCreateFn,
-  type FactoryParams,
-  type GeneratorFn,
-  type GeneratorReturn,
+import type {
+  AfterCreateFn,
+  AssociateFunction,
+  BeforeCreateFn,
+  FactoryParams,
+  GeneratorFn,
+  GeneratorReturn,
 } from "./types"
 
 export type AttributeBuilderOptions<T extends Model, TransientParams> = {
@@ -32,6 +32,8 @@ export class AttributeBuilder<T extends Model, TransientParams> {
   private readonly params: FactoryParams<T>
   private readonly afterCreateHooks: AfterCreateFn<T>[] = []
   private readonly beforeCreateHooks: BeforeCreateFn<T>[] = []
+
+  // Cache generator output so the same evaluation and hooks are produced only once.
   private cachedAttributes?: GeneratorReturn<T>
 
   constructor(options: AttributeBuilderOptions<T, TransientParams>) {

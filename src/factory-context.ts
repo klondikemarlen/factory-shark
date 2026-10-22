@@ -1,6 +1,6 @@
 // Originally from WRAP's FactoryShark; extracted and modified for standalone distribution.
 // Apache-2.0 terms and original attribution are preserved.
-import { type Association, type Model, type ModelStatic } from "@sequelize/core"
+import type { Association, Model, ModelStatic } from "@sequelize/core"
 
 import { AssociationNotFoundError, ForeignKeyNotFoundError } from "./errors"
 import type {
@@ -42,16 +42,25 @@ export class FactoryContext<T extends Model = Model> {
     overrides?: FactoryParams<A> | ((resolvedParams: FactoryParams<T>) => FactoryParams<A>)
   ): A => {
     const foreignKeyName = this.resolveForeignKeyName(name)
-    const buildParams = typeof overrides === "function" ? overrides(this.params) : overrides
+    let buildParams: FactoryParams<A> | undefined
+
+    if (typeof overrides === "function") {
+      buildParams = overrides(this.params)
+    } else {
+      buildParams = overrides
+    }
+
     const instance = factory.build(buildParams)
 
     this.registrations.push({
       name,
       foreignKeyName,
       create: (resolvedParams) => {
-        const createParams =
-          typeof overrides === "function" ? overrides(resolvedParams) : overrides
-        return factory.create(createParams)
+        if (typeof overrides === "function") {
+          return factory.create(overrides(resolvedParams))
+        } else {
+          return factory.create(overrides)
+        }
       },
       instance,
     })

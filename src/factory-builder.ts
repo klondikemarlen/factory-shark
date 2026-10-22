@@ -1,6 +1,6 @@
 // Originally from WRAP's FactoryShark; extracted and modified for standalone distribution.
 // Apache-2.0 terms and original attribution are preserved.
-import { type CreationAttributes, type Model, type ModelStatic } from "@sequelize/core"
+import type { CreationAttributes, Model, ModelStatic } from "@sequelize/core"
 
 import { AssociationManager } from "./association-manager"
 import { AttributeBuilder } from "./attribute-builder"
@@ -42,6 +42,7 @@ type FactoryEvaluator<T extends Model> = {
  * configuration methods (params/associations/hooks) return a new builder.
  */
 export class FactoryBuilder<T extends Model, TransientParams = Record<string, never>> {
+  // Keep sequence state on each builder so immutable configured clones start at zero.
   private sequenceCounter = 0
 
   constructor(
@@ -93,11 +94,20 @@ export class FactoryBuilder<T extends Model, TransientParams = Record<string, ne
   }
 
   params(params: FactoryParams<T>): FactoryInterface<T, TransientParams> {
-    return this.clone({ defaultParams: { ...this.defaultParams, ...params } })
+    return this.clone({
+      defaultParams: {
+        ...this.defaultParams,
+        ...params,
+      },
+    })
   }
 
   transient(params: Partial<TransientParams>): FactoryInterface<T, TransientParams> {
-    const mergedTransientParams = { ...this.defaultTransientParams, ...params } as TransientParams
+    const mergedTransientParams = {
+      ...this.defaultTransientParams,
+      ...params,
+    } as TransientParams
+
     return this.clone({ defaultTransientParams: mergedTransientParams })
   }
 
@@ -129,7 +139,10 @@ export class FactoryBuilder<T extends Model, TransientParams = Record<string, ne
       factoryContext.getParams()
     )
 
-    return { attributeBuilder, associationManager }
+    return {
+      attributeBuilder,
+      associationManager,
+    }
   }
 
   private clone(

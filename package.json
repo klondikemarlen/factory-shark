@@ -10,7 +10,12 @@
   },
   "homepage": "https://github.com/klondikemarlen/factory-shark#readme",
   "bugs": "https://github.com/klondikemarlen/factory-shark/issues",
-  "keywords": ["sequelize", "factory", "testing", "typescript"],
+  "keywords": [
+    "sequelize",
+    "factory",
+    "testing",
+    "typescript"
+  ],
   "type": "commonjs",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -22,23 +27,39 @@
     },
     "./package.json": "./package.json"
   },
-  "files": ["dist", "src", "LICENSE", "LICENSE-APACHE", "NOTICE", "README.md"],
-  "engines": {"node": "^22.0.0 || ^24.0.0"},
+  "files": [
+    "dist",
+    "src",
+    "LICENSE",
+    "LICENSE-APACHE",
+    "NOTICE",
+    "README.md"
+  ],
+  "engines": {
+    "node": "^22.0.0 || ^24.0.0"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts",
     "smoke": "node scripts/verify-package.mjs",
-    "check": "npm run typecheck && npm test && npm run smoke",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "npm run format:check && npm run typecheck && npm test && npm run smoke",
     "prepack": "npm run build"
   },
-  "peerDependencies": {"@sequelize/core": "7.0.0-alpha.48"},
-  "dependencies": {"lodash": "^4.17.21"},
+  "peerDependencies": {
+    "@sequelize/core": "7.0.0-alpha.48"
+  },
+  "dependencies": {
+    "lodash": "^4.17.21"
+  },
   "devDependencies": {
     "@sequelize/core": "7.0.0-alpha.48",
     "@sequelize/sqlite3": "7.0.0-alpha.48",
     "@types/lodash": "^4.17.20",
     "@types/node": "^22.20.0",
+    "prettier": "3.9.10",
     "sqlite3": "^5.1.7",
     "tsx": "^4.23.15",
     "typescript": "5.9.3"

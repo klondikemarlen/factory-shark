@@ -9,11 +9,23 @@ npm ci
 npm run check
 ```
 
-`npm run typecheck` checks the strict TypeScript library and type-safety scenarios. `npm test` runs consumer-visible scenarios against isolated, in-memory SQLite with Sequelize 7.0.0-alpha.48. `npm run build` emits CommonJS and declarations into `dist/`. `npm run smoke` builds/packs the package, installs that tarball into a temporary external consumer, and compiles and executes the README example, including real association persistence. The smoke command needs npm registry access for consumer dependencies and cleans up its own temporary directory on completion. SQLite's native dependency needs either an available prebuilt binary or the usual native build toolchain.
+`npm run format:check` checks formatting for code, documentation examples, and configuration. `npm run typecheck` checks the strict TypeScript library and type-safety scenarios. `npm test` runs consumer-visible scenarios against isolated, in-memory SQLite with Sequelize 7.0.0-alpha.48. `npm run build` emits CommonJS and declarations into `dist/`. `npm run smoke` builds/packs the package, installs that tarball into a temporary external consumer, and compiles and executes the README example, including real association persistence. The smoke command needs npm registry access for consumer dependencies and cleans up its own temporary directory on completion. SQLite's native dependency needs either an available prebuilt binary or the usual native build toolchain.
 
 Tests belong in `tests/`; use generic local models and real disposable persistence rather than application models or mock-only ORM assertions. Cover externally observable contracts, not private implementation structure. Use `when [condition], [behavior]` test names and Arrange/Act/Assert phases. Type-safety cases use `@ts-expect-error` so unexpectedly accepted invalid input fails type checking.
 
 Changes follow an issue-linked branch and PR. Keep extraction behavior stable unless a separate accepted issue changes the contract. Include meaningful QA steps, resolve review findings, and merge only after checks pass. New source derived from WRAP must preserve its Apache attribution and identify modifications; new original infrastructure/documentation is MIT licensed.
+
+## Coding Conventions
+
+Run `npm run format` before submitting changes. The checked-in Prettier configuration uses two-space indentation, double quotes, no semicolons, and trailing commas where supported by ES5. `npm run check` includes the format check, so CI checks the same files and README code examples as local development. Generated output, installed dependencies, tarballs, and the npm-generated lockfile are not formatter inputs.
+
+- Keep multi-property objects and types expanded, including Sequelize schemas, options, and assertion expectations. Give each callback statement its own line and separate logical steps with one blank line.
+- Group imports by standard library, third-party dependencies, then local modules. Mark type-only bindings explicitly and keep them together within each group; do not interleave them with runtime bindings.
+- Use explanatory names and named parameter types instead of dense inline generic shapes. Preserve type predicates, conditional types, and explicit return types that protect a public or recursive contract.
+- Use explicit `if`/`else` branches instead of runtime ternaries. Prefer Lodash `isUndefined` for undefined checks. Keep necessary TypeScript conditional types; they describe type relationships rather than runtime control flow.
+- Break dense fluent expressions into named steps when that makes precedence or effects easier to follow. Extract a helper only when it names a meaningful responsibility, not merely to shorten a line.
+- Keep model initialization, factory evaluation, and package-verification side effects visible. Explain non-obvious state invariants beside their owner, including sequence ownership, generator caching, and Sequelize fixture isolation.
+- Give each behavioral test one observable outcome. Keep its literal inputs in Arrange, the operation in Act, and observation queries in Assert immediately above their assertions. Use fresh isolated fixtures rather than depending on previous tests.
 
 ## Release
 
