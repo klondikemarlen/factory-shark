@@ -4,11 +4,15 @@ TypeScript test factories for Sequelize with declarative `belongsTo` association
 
 ## Install and Compatibility
 
-The package is prepared for npm publication but has not yet been published. Until publication, run `npm ci && npm pack` in a clone and install the resulting `factory-shark-0.1.0.tgz` in your application alongside `@sequelize/core@7.0.0-alpha.48` and your matching Sequelize dialect.
+Install FactoryShark as a development dependency:
+
+```sh
+npm install --save-dev factory-shark@0.1.0
+```
+
+Your application must use `@sequelize/core@7.0.0-alpha.48` and a matching Sequelize dialect.
 
 The supported runtime is Node.js 22 or 24, with **exactly Sequelize 7.0.0-alpha.48**. Sequelize 6 and other alpha revisions are not supported. The artifact is CommonJS with TypeScript declarations; use TypeScript's Node16 module resolution and `esModuleInterop`, or CommonJS `require("factory-shark").FactoryShark`. There is no separate native ESM build. The standalone API retains the original WRAP behavior, including its `id` primary-key convention; custom primary-key names and non-`belongsTo` associations are outside the supported contract.
-
-The intended registry name is the unscoped `factory-shark`: the registry returned 404 during extraction. This is an availability observation, not a reservation or proof of publishing rights. No npm organization scope is assumed; the maintainer must authenticate and recheck name availability before the first publish.
 
 ## Define Factories Alongside Your Tests
 
