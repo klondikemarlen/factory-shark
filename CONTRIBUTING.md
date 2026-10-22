@@ -2,14 +2,15 @@
 
 ## Setup and Checks
 
-Use Node.js 22 or 24 and npm. No Docker, WRAP checkout, application environment variables, external database, or private fixtures are needed.
+Use a current Node.js 22 or 24 release and npm 11.12.1 for development checks. No Docker, WRAP checkout, application environment variables, external database, or private fixtures are needed. CI pins the same npm version because npm 10.9.9 crashes in peer-dependency resolution for the consumer's Vitest toolchain; the library's Node/Sequelize runtime contract is unchanged.
 
 ```sh
+npm install --global npm@11.12.1
 npm ci
 npm run check
 ```
 
-`npm run format:check` checks formatting for code, documentation examples, and configuration. `npm run typecheck` checks the strict TypeScript library and type-safety scenarios. `npm test` runs consumer-visible scenarios against isolated, in-memory SQLite with Sequelize 7.0.0-alpha.48. `npm run build` emits CommonJS and declarations into `dist/`. `npm run smoke` builds/packs the package, installs that tarball into a temporary external consumer, and compiles every README TypeScript example. It runs the documented Vitest tests unchanged against small real SQLite model contracts and supporting factories from `scripts/fixtures/readme/`; no WRAP services or application boot are involved. The consuming examples use the same Faker 8/Vitest 4 families inspected in WRAP without adding them as library runtime dependencies. The smoke command needs npm registry access and cleans up its own temporary directory on completion. SQLite's native dependency needs either an available prebuilt binary or the usual native build toolchain.
+`npm run format:check` checks formatting for code, documentation examples, and configuration. `npm run typecheck` checks the strict TypeScript library and type-safety scenarios. `npm test` runs consumer-visible scenarios against isolated, in-memory SQLite with Sequelize 7.0.0-alpha.48. `npm run build` emits CommonJS and declarations into `dist/`. `npm run smoke` builds/packs the package, installs that tarball into a temporary external consumer, and compiles every README TypeScript example. It runs the documented Vitest tests unchanged against small real SQLite model contracts and supporting factories from `scripts/fixtures/readme/`; no WRAP services or application boot are involved. The consumer pins WRAP's resolved Faker 8.4.1, Vitest 4.1.5, and Vite 7.3.1 versions rather than allowing Vitest's broad Vite peer range to drift to a different major. These are consumer test dependencies, not library runtime dependencies. The smoke command needs npm registry access and cleans up its own temporary directory on completion. SQLite's native dependency needs either an available prebuilt binary or the usual native build toolchain.
 
 Tests belong in `tests/`; use generic local models and real disposable persistence rather than application models or mock-only ORM assertions. Cover externally observable contracts, not private implementation structure. Use `when [condition], [behavior]` test names and Arrange/Act/Assert phases. Type-safety cases use `@ts-expect-error` so unexpectedly accepted invalid input fails type checking.
 
