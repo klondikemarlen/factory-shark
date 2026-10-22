@@ -5,6 +5,8 @@ https://github.com/icefoganalytics/wrap
 Source revision: 24ce6097a1f2c4d87a09dddcec88e33b8859782b
 Source directory: api/src/lib/factory-shark
 Behavioral tests were adapted from api/tests/lib/factory-shark.
+README factory examples and supporting smoke factories were adapted from
+api/tests/factories at the same source revision and retain Apache-2.0 terms.
 
 The extracted material remains under Apache License 2.0 (LICENSE-APACHE).
 WRAP's root LICENSE supplies these terms; its conflicting api/package.json
@@ -12,9 +14,9 @@ ISC metadata is not used to relicense the extracted code. No upstream NOTICE
 file was present at the source revision. Existing source notices are retained.
 Standalone import and declaration adaptations are identified in source headers.
 
-New original package infrastructure, examples, and documentation are covered
-by the MIT license in LICENSE. The distribution combines these terms; it is
-not an MIT-only grant for the extracted material.
+New original package infrastructure, model projections, and documentation prose
+are covered by the MIT license in LICENSE. The distribution combines these terms;
+it is not an MIT-only grant for the extracted or adapted material.
 
 FactoryShark is inspired by Fishery and factory_bot. No Fishery implementation
 was copied, and Fishery is not a runtime dependency.
