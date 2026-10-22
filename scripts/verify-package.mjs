@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import { execFileSync } from "node:child_process"
 import { createHash } from "node:crypto"
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -58,16 +58,37 @@ function installConsumerDependencies(archivePath) {
     "sqlite3@5.1.7",
     "typescript@5.9.3",
     "@types/node@22",
+    "@faker-js/faker@8.4.1",
+    "vitest@4.1.5",
   ])
   console.log(installOutput)
 }
 
-function writeConsumerExample() {
-  const readme = readFileSync(join(projectRoot, "README.md"), "utf8")
-  const exampleMatch = readme.match(/```typescript\n([\s\S]*?)\n```/)
-  assert.ok(exampleMatch, "README must contain the complete typed consumer example")
+function writeConsumerExamples() {
+  const fixtureDirectory = join(projectRoot, "scripts/fixtures/readme")
+  cpSync(fixtureDirectory, consumerDirectory, {
+    recursive: true,
+  })
 
-  writeFileSync(join(consumerDirectory, "example.ts"), exampleMatch[1])
+  const readme = readFileSync(join(projectRoot, "README.md"), "utf8")
+  const examplePattern = /^### `([^`]+\.ts)`[\s\S]*?^```typescript\n([\s\S]*?)^```/gm
+  let exampleCount = 0
+
+  for (const exampleMatch of readme.matchAll(examplePattern)) {
+    const [, examplePath, exampleSource] = exampleMatch
+    assert.match(examplePath, /^(?:factories\/)?[a-z-]+(?:\.test)?\.ts$/)
+
+    const consumerPath = join(consumerDirectory, examplePath)
+    mkdirSync(dirname(consumerPath), {
+      recursive: true,
+    })
+    writeFileSync(consumerPath, exampleSource)
+    exampleCount += 1
+  }
+
+  const documentedBlockCount = [...readme.matchAll(/^```typescript$/gm)].length
+  assert.ok(exampleCount > 0, "README must contain executable TypeScript examples")
+  assert.equal(exampleCount, documentedBlockCount, "Every TypeScript example needs a file heading")
 
   const compilerConfiguration = {
     compilerOptions: {
@@ -78,10 +99,25 @@ function writeConsumerExample() {
       esModuleInterop: true,
       skipLibCheck: true,
       noEmitOnError: true,
+      outDir: "compiled",
+      types: ["node", "vitest/globals"],
     },
-    include: ["example.ts"],
+    include: ["**/*.ts"],
   }
   writeFileSync(join(consumerDirectory, "tsconfig.json"), JSON.stringify(compilerConfiguration))
+
+  const vitestConfiguration = {
+    test: {
+      globals: true,
+      setupFiles: ["./setup.ts"],
+      include: ["*-factory.test.ts"],
+      fileParallelism: false,
+    },
+  }
+  writeFileSync(
+    join(consumerDirectory, "vitest.config.mjs"),
+    `export default ${JSON.stringify(vitestConfiguration)}`
+  )
 }
 
 function verifyTypedConsumer() {
@@ -89,24 +125,64 @@ function verifyTypedConsumer() {
   const compilerOutput = runCommand(process.execPath, [compilerPath])
   console.log(compilerOutput)
 
-  const examplePath = join(consumerDirectory, "example.js")
-  const exampleOutput = runCommand(process.execPath, [examplePath])
+  const exampleOutput = runCommand("npm", [
+    "exec",
+    "--",
+    "vitest",
+    "run",
+    "--config",
+    "vitest.config.mjs",
+  ])
   console.log(exampleOutput)
+  console.log("Packed consumer PASS: README factory modules and focused Vitest scenarios")
 }
 
 function verifyCommonJsConsumer() {
   const commonJsExample = `
     const assert = require("node:assert/strict")
-    const library = require("factory-shark")
-    const metadata = require("factory-shark/package.json")
+    const { FactoryShark } = require("factory-shark")
+    const { User } = require("./compiled/models")
+    const { initializeModels } = require("./compiled/initialize-models")
 
-    assert.equal(library.default, library.FactoryShark)
-    assert.equal(metadata.version, ${JSON.stringify(version)})
+    async function verifyBuild() {
+      const sequelize = initializeModels()
 
-    console.log("CommonJS root import PASS; installed factory-shark@" + metadata.version)
+      try {
+        const userFactory = FactoryShark.define(User, () => ({
+          firstName: "CommonJS",
+          lastName: "Consumer",
+          email: "commonjs@example.com",
+          authSubject: "commonjs@example.com",
+        }))
+
+        const user = userFactory.build()
+
+        assert.equal(user.firstName, "CommonJS")
+        console.log("CommonJS consumer PASS: factory build")
+      } finally {
+        await sequelize.close()
+      }
+    }
+
+    verifyBuild().catch((error) => {
+      console.error(error)
+      process.exitCode = 1
+    })
   `
   const consumerOutput = runCommand(process.execPath, ["-e", commonJsExample])
   console.log(consumerOutput)
+}
+
+function verifyInstalledVersion() {
+  const versionCheck = `
+    const assert = require("node:assert/strict")
+    const metadata = require("factory-shark/package.json")
+
+    assert.equal(metadata.version, ${JSON.stringify(version)})
+    console.log("Installed factory-shark@" + metadata.version)
+  `
+  const versionOutput = runCommand(process.execPath, ["-e", versionCheck])
+  console.log(versionOutput)
 }
 
 try {
@@ -125,9 +201,10 @@ try {
 
   verifyPackageContents(artifact)
   installConsumerDependencies(archivePath)
-  writeConsumerExample()
+  writeConsumerExamples()
   verifyTypedConsumer()
   verifyCommonJsConsumer()
+  verifyInstalledVersion()
 } finally {
   rmSync(consumerDirectory, {
     recursive: true,
