@@ -43,24 +43,28 @@ function verifyPackageContents(artifact) {
 
 function installConsumerDependencies(archivePath) {
   const consumerManifest = {
+    name: "factory-shark-readme-consumer",
+    version: "0.0.0",
     private: true,
     type: "commonjs",
+    dependencies: {
+      "factory-shark": `file:${archivePath}`,
+      "@sequelize/core": "7.0.0-alpha.48",
+      "@sequelize/sqlite3": "7.0.0-alpha.48",
+      sqlite3: "5.1.7",
+    },
+    devDependencies: {
+      typescript: "5.9.3",
+      "@types/node": "22",
+      "@faker-js/faker": "8.4.1",
+      vitest: "4.1.5",
+      // Match WRAP's resolved Vite peer before npm builds its dependency graph.
+      vite: "7.3.1",
+    },
   }
   writeFileSync(join(consumerDirectory, "package.json"), JSON.stringify(consumerManifest))
 
-  const installOutput = runCommand("npm", [
-    "install",
-    "--no-audit",
-    "--no-fund",
-    archivePath,
-    "@sequelize/core@7.0.0-alpha.48",
-    "@sequelize/sqlite3@7.0.0-alpha.48",
-    "sqlite3@5.1.7",
-    "typescript@5.9.3",
-    "@types/node@22",
-    "@faker-js/faker@8.4.1",
-    "vitest@4.1.5",
-  ])
+  const installOutput = runCommand("npm", ["install", "--no-audit", "--no-fund"])
   console.log(installOutput)
 }
 
@@ -125,10 +129,9 @@ function verifyTypedConsumer() {
   const compilerOutput = runCommand(process.execPath, [compilerPath])
   console.log(compilerOutput)
 
-  const exampleOutput = runCommand("npm", [
-    "exec",
-    "--",
-    "vitest",
+  const vitestPath = join(consumerDirectory, "node_modules/vitest/vitest.mjs")
+  const exampleOutput = runCommand(process.execPath, [
+    vitestPath,
     "run",
     "--config",
     "vitest.config.mjs",
