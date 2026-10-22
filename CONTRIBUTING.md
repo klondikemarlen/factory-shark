@@ -30,7 +30,7 @@ Run `npm run format` before submitting changes. The checked-in Prettier configur
 
 ## Release
 
-There is no automatic registry publication. The initial deliverable is a verified, publish-ready `0.1.0` tarball, not evidence of an npm release. Publishing requires separate maintainer authorization and credentials; never put tokens in the repository.
+Releases are published manually from a reviewed, synchronized `main` checkout. Publication requires maintainer authorization and credentials; never put tokens in the repository.
 
 After the reviewed PR merges, synchronize `main` and run:
 

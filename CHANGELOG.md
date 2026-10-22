@@ -10,4 +10,4 @@
 - Separate returned-model state, association state, and per-table persistence expectations into focused behavioral tests.
 - Preserve Apache-2.0 attribution for extracted material alongside MIT terms for new original work.
 
-This version identifies the initial publish-ready artifact; it does not assert registry publication.
+Install this version with `npm install --save-dev factory-shark@0.1.0`.
