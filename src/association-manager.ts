@@ -1,17 +1,17 @@
 // Originally from WRAP's FactoryShark; extracted and modified for standalone distribution.
 // Apache-2.0 terms and original attribution are preserved.
-import { isNil } from "lodash"
-import { type Association, type Model, type ModelStatic } from "@sequelize/core"
+import { isNil, isUndefined } from "lodash"
+import type { Association, Model, ModelStatic } from "@sequelize/core"
 
 import { AssociationNotFoundError } from "./errors"
 import { isModel, PRIMARY_KEY } from "./utils"
-import { type AssociationRegistration } from "./factory-context"
-import {
-  type AssociationName,
-  type FactoryParams,
-  type ForeignKeyName,
-  type ForeignKeyValue,
-  type MinimalAssociation,
+import type { AssociationRegistration } from "./factory-context"
+import type {
+  AssociationName,
+  FactoryParams,
+  ForeignKeyName,
+  ForeignKeyValue,
+  MinimalAssociation,
 } from "./types"
 
 /**
@@ -198,7 +198,7 @@ export class AssociationManager<T extends Model> {
   private readPrimaryKey(model: Model): ForeignKeyValue {
     const primaryKey = model.get(PRIMARY_KEY)
 
-    if (primaryKey === undefined || primaryKey === null) {
+    if (isUndefined(primaryKey) || primaryKey === null) {
       throw new Error(`Expected primary key on ${model.constructor.name}, got ${primaryKey}`)
     }
 

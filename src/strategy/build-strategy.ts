@@ -1,6 +1,6 @@
 // Originally from WRAP's FactoryShark; extracted and modified for standalone distribution.
 // Apache-2.0 terms and original attribution are preserved.
-import { type CreationAttributes, type Model, type ModelStatic } from "@sequelize/core"
+import type { CreationAttributes, Model, ModelStatic } from "@sequelize/core"
 
 /**
  * Build strategy — mirrors factory_bot's Strategy::Build. Associations are
