@@ -4,9 +4,10 @@ import { test } from "node:test"
 
 import { isUndefined } from "lodash"
 
-import { AssociationNotFoundError, FactoryShark } from "../src/index.js"
 import { createFixture } from "./support.js"
 import type { Fixture, ProjectRecord } from "./support.js"
+
+import { AssociationNotFoundError, FactoryShark } from "../src/index.js"
 
 type FixtureScenario = (fixture: Fixture) => Promise<void>
 
@@ -39,22 +40,60 @@ test("when build is called, it returns an unsaved model", async () => {
   })
 })
 
-test("when build evaluates an association graph, no records are persisted", async () => {
+test("when build evaluates associations, the associated organization remains unsaved", async () => {
   // Arrange
-  await withFixture(async ({ projectFactory, Project, Organization, Category, User }) => {
+  await withFixture(async ({ projectFactory }) => {
+    // Act
+    const project = projectFactory.build()
+
+    // Assert
+    assert.equal(project.organization?.isNewRecord, true)
+  })
+})
+
+test("when build is called, it does not persist the parent record", async () => {
+  // Arrange
+  await withFixture(async ({ projectFactory, Project }) => {
     // Act
     projectFactory.build()
 
     // Assert
     const projectCount = await Project.count()
     assert.equal(projectCount, 0)
+  })
+})
 
+test("when build evaluates associations, it does not persist organizations", async () => {
+  // Arrange
+  await withFixture(async ({ projectFactory, Organization }) => {
+    // Act
+    projectFactory.build()
+
+    // Assert
     const organizationCount = await Organization.count()
     assert.equal(organizationCount, 0)
+  })
+})
 
+test("when build evaluates associations, it does not persist categories", async () => {
+  // Arrange
+  await withFixture(async ({ projectFactory, Category }) => {
+    // Act
+    projectFactory.build()
+
+    // Assert
     const categoryCount = await Category.count()
     assert.equal(categoryCount, 0)
+  })
+})
 
+test("when build evaluates associations, it does not persist users", async () => {
+  // Arrange
+  await withFixture(async ({ projectFactory, User }) => {
+    // Act
+    projectFactory.build()
+
+    // Assert
     const userCount = await User.count()
     assert.equal(userCount, 0)
   })
@@ -83,19 +122,37 @@ test("when create is called, the parent record is persisted", async () => {
   })
 })
 
-test("when create evaluates an association graph, all associated records are persisted", async () => {
+test("when create evaluates associations, it persists the organization", async () => {
   // Arrange
-  await withFixture(async ({ projectFactory, Organization, Category, User }) => {
+  await withFixture(async ({ projectFactory, Organization }) => {
     // Act
     await projectFactory.create()
 
     // Assert
     const organizationCount = await Organization.count()
     assert.equal(organizationCount, 1)
+  })
+})
 
+test("when create evaluates associations, it persists the category", async () => {
+  // Arrange
+  await withFixture(async ({ projectFactory, Category }) => {
+    // Act
+    await projectFactory.create()
+
+    // Assert
     const categoryCount = await Category.count()
     assert.equal(categoryCount, 1)
+  })
+})
 
+test("when create evaluates associations, it persists the user", async () => {
+  // Arrange
+  await withFixture(async ({ projectFactory, User }) => {
+    // Act
+    await projectFactory.create()
+
+    // Assert
     const userCount = await User.count()
     assert.equal(userCount, 1)
   })
@@ -132,9 +189,9 @@ test("when a foreign key is supplied, create does not duplicate that association
   })
 })
 
-test("when a foreign key is supplied, create still persists the other associations", async () => {
+test("when a foreign key is supplied, create still persists the category", async () => {
   // Arrange
-  await withFixture(async ({ organizationFactory, projectFactory, Category, User }) => {
+  await withFixture(async ({ organizationFactory, projectFactory, Category }) => {
     const organization = await organizationFactory.create()
 
     // Act
@@ -145,7 +202,20 @@ test("when a foreign key is supplied, create still persists the other associatio
     // Assert
     const categoryCount = await Category.count()
     assert.equal(categoryCount, 1)
+  })
+})
 
+test("when a foreign key is supplied, create still persists the user", async () => {
+  // Arrange
+  await withFixture(async ({ organizationFactory, projectFactory, User }) => {
+    const organization = await organizationFactory.create()
+
+    // Act
+    await projectFactory.create({
+      organizationId: organization.id,
+    })
+
+    // Assert
     const userCount = await User.count()
     assert.equal(userCount, 1)
   })
@@ -277,7 +347,7 @@ test("when transient defaults are chained, both defaults affect generated attrib
   })
 })
 
-test("when one factory evaluates build then create, its sequence increases across both", async () => {
+test("when build is called, its generated name uses the first sequence value", async () => {
   // Arrange
   await withFixture(async ({ Organization }) => {
     const organizationFactory = FactoryShark.define(Organization, ({ sequence }) => ({
@@ -285,12 +355,26 @@ test("when one factory evaluates build then create, its sequence increases acros
     }))
 
     // Act
-    const builtOrganization = organizationFactory.build()
-    const createdOrganization = await organizationFactory.create()
+    const organization = organizationFactory.build()
 
     // Assert
-    assert.equal(builtOrganization.name, "Organization 1")
-    assert.equal(createdOrganization.name, "Organization 2")
+    assert.equal(organization.name, "Organization 1")
+  })
+})
+
+test("when create follows a build, its generated name uses the next sequence value", async () => {
+  // Arrange
+  await withFixture(async ({ Organization }) => {
+    const organizationFactory = FactoryShark.define(Organization, ({ sequence }) => ({
+      name: `Organization ${sequence}`,
+    }))
+    organizationFactory.build()
+
+    // Act
+    const organization = await organizationFactory.create()
+
+    // Assert
+    assert.equal(organization.name, "Organization 2")
   })
 })
 
@@ -388,15 +472,20 @@ test("when beforeCreate throws, create propagates the hook error", async () => {
   })
 })
 
-test("when beforeCreate throws, the parent record is not saved", async () => {
+test("when beforeCreate throws, create does not persist the parent record", async () => {
   // Arrange
   await withFixture(async ({ projectFactory, Project }) => {
+    const hookError = new Error("before hook failed")
     const failingFactory = projectFactory.beforeCreate(() => {
-      throw new Error("before hook failed")
+      throw hookError
     })
 
     // Act
-    await assert.rejects(failingFactory.create(), /before hook failed/)
+    try {
+      await failingFactory.create()
+    } catch (error) {
+      if (error !== hookError) throw error
+    }
 
     // Assert
     const projectCount = await Project.count()
