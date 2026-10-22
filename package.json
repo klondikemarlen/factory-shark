@@ -1,0 +1,46 @@
+{
+  "name": "factory-shark",
+  "version": "0.1.0",
+  "description": "TypeScript test factories for Sequelize with declarative associations",
+  "license": "MIT AND Apache-2.0",
+  "author": "Marlen",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/klondikemarlen/factory-shark.git"
+  },
+  "homepage": "https://github.com/klondikemarlen/factory-shark#readme",
+  "bugs": "https://github.com/klondikemarlen/factory-shark/issues",
+  "keywords": ["sequelize", "factory", "testing", "typescript"],
+  "type": "commonjs",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": ["dist", "src", "LICENSE", "LICENSE-APACHE", "NOTICE", "README.md"],
+  "engines": {"node": "^22.0.0 || ^24.0.0"},
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test tests/*.test.ts",
+    "smoke": "node scripts/verify-package.mjs",
+    "check": "npm run typecheck && npm test && npm run smoke",
+    "prepack": "npm run build"
+  },
+  "peerDependencies": {"@sequelize/core": "7.0.0-alpha.48"},
+  "dependencies": {"lodash": "^4.17.21"},
+  "devDependencies": {
+    "@sequelize/core": "7.0.0-alpha.48",
+    "@sequelize/sqlite3": "7.0.0-alpha.48",
+    "@types/lodash": "^4.17.20",
+    "@types/node": "^22.20.0",
+    "sqlite3": "^5.1.7",
+    "tsx": "^4.23.15",
+    "typescript": "5.9.3"
+  }
+}
