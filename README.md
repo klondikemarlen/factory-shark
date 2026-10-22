@@ -16,19 +16,24 @@ This complete example uses SQLite only to make the persistence boundary runnable
 
 ```typescript
 import assert from "node:assert/strict"
+
 import {
-  CreationOptional,
+  type CreationOptional,
+  type InferAttributes,
+  type InferCreationAttributes,
+  type NonAttribute,
   DataTypes,
-  InferAttributes,
-  InferCreationAttributes,
   Model,
-  NonAttribute,
   Sequelize,
 } from "@sequelize/core"
 import { SqliteDialect } from "@sequelize/sqlite3"
-import { FactoryShark, type FactoryParams } from "factory-shark"
 
-class Organization extends Model<InferAttributes<Organization>, InferCreationAttributes<Organization>> {
+import { type FactoryParams, FactoryShark } from "factory-shark"
+
+class Organization extends Model<
+  InferAttributes<Organization>,
+  InferCreationAttributes<Organization>
+> {
   declare id: CreationOptional<number>
   declare name: string
 }
@@ -40,69 +45,176 @@ class User extends Model<InferAttributes<User>, InferCreationAttributes<User>> {
   declare organization?: NonAttribute<Organization>
 }
 
+type UserTransientParams = {
+  prefix?: string
+}
+
+const organizationFactory = FactoryShark.define(Organization, ({ sequence }) => ({
+  name: `Organization ${sequence}`,
+}))
+
+const userFactory = FactoryShark.define<User, UserTransientParams>(
+  User,
+  ({ sequence, associate, transient, beforeCreate, afterCreate }) => {
+    associate("organization", organizationFactory)
+
+    beforeCreate((user) => {
+      assert.ok(user.organizationId)
+      assert.equal(user.isNewRecord, true)
+    })
+
+    afterCreate(async (user) => {
+      assert.equal(user.isNewRecord, false)
+    })
+
+    const prefix = transient.prefix ?? "User"
+
+    return {
+      name: `${prefix} ${sequence}`,
+    }
+  }
+)
+
+function initializeModels(sequelize: Sequelize) {
+  Organization.init(
+    {
+      id: {
+        type: DataTypes.INTEGER,
+        primaryKey: true,
+        autoIncrement: true,
+      },
+      name: {
+        type: DataTypes.STRING,
+        allowNull: false,
+      },
+    },
+    {
+      sequelize,
+      timestamps: false,
+    }
+  )
+
+  User.init(
+    {
+      id: {
+        type: DataTypes.INTEGER,
+        primaryKey: true,
+        autoIncrement: true,
+      },
+      name: {
+        type: DataTypes.STRING,
+        allowNull: false,
+      },
+      organizationId: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+      },
+    },
+    {
+      sequelize,
+      timestamps: false,
+    }
+  )
+
+  User.belongsTo(Organization, {
+    as: "organization",
+    foreignKey: "organizationId",
+  })
+}
+
+async function verifyBuildWithoutPersistence() {
+  const user = userFactory.build()
+
+  assert.equal(user.isNewRecord, true)
+  assert.equal(user.organization?.isNewRecord, true)
+
+  const userCount = await User.count()
+  assert.equal(userCount, 0)
+
+  const organizationCount = await Organization.count()
+  assert.equal(organizationCount, 0)
+}
+
+async function verifyCreateWithAssociation() {
+  const memberFactory = userFactory.transient({
+    prefix: "Member",
+  })
+  const user = await memberFactory.create()
+
+  assert.equal(user.name, "Member 1")
+
+  const organization = user.organization
+  assert.ok(organization)
+
+  const reloadedUser = await User.findByPk(user.id, {
+    include: ["organization"],
+  })
+  assert.equal(reloadedUser?.organization?.name, organization.name)
+
+  return organization
+}
+
+async function verifyForeignKeyOverride(organizationId: number) {
+  const overrides: FactoryParams<User> = {
+    organizationId,
+  }
+
+  await userFactory.create(overrides)
+
+  const organizationCount = await Organization.count()
+  assert.equal(organizationCount, 1)
+}
+
+async function verifyAssociationOverride(organization: Organization) {
+  const existingOrganizationFactory = userFactory.associations({
+    organization,
+  })
+
+  await existingOrganizationFactory.create()
+
+  const organizationCount = await Organization.count()
+  assert.equal(organizationCount, 1)
+}
+
+function verifyAttributePrecedence() {
+  const defaultNameFactory = userFactory.params({
+    name: "Default",
+  })
+
+  const user = defaultNameFactory.build({
+    name: "Override",
+  })
+
+  assert.equal(user.name, "Override")
+}
+
 async function main() {
   const sequelize = new Sequelize({
     dialect: SqliteDialect,
     storage: ":memory:",
     logging: false,
-    pool: { max: 1, idle: Infinity, maxUses: Infinity },
+    pool: {
+      max: 1,
+      idle: Infinity,
+      maxUses: Infinity,
+    },
   })
 
   try {
-    Organization.init({
-      id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-      name: { type: DataTypes.STRING, allowNull: false },
-    }, { sequelize, timestamps: false })
-    User.init({
-      id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-      name: { type: DataTypes.STRING, allowNull: false },
-      organizationId: { type: DataTypes.INTEGER, allowNull: false },
-    }, { sequelize, timestamps: false })
-    User.belongsTo(Organization, { as: "organization", foreignKey: "organizationId" })
-    await sequelize.sync({ force: true })
+    initializeModels(sequelize)
+    await sequelize.sync({
+      force: true,
+    })
 
-    const organizationFactory = FactoryShark.define(Organization, ({ sequence }) => ({
-      name: `Organization ${sequence}`,
-    }))
-    const userFactory = FactoryShark.define<User, { prefix?: string }>(
-      User,
-      ({ sequence, associate, transient, beforeCreate, afterCreate }) => {
-        associate("organization", organizationFactory)
-        beforeCreate((user) => {
-          assert.ok(user.organizationId)
-          assert.equal(user.isNewRecord, true)
-        })
-        afterCreate(async (user) => {
-          assert.equal(user.isNewRecord, false)
-        })
-        return { name: `${transient.prefix ?? "User"} ${sequence}` }
-      }
+    await verifyBuildWithoutPersistence()
+    const organization = await verifyCreateWithAssociation()
+    await verifyForeignKeyOverride(organization.id)
+    await verifyAssociationOverride(organization)
+    verifyAttributePrecedence()
+
+    console.log(
+      "Packed consumer PASS: typed build, persisted association, overrides, transient, hooks"
     )
-
-    // build is synchronous: both model and associated model stay unsaved.
-    const built = userFactory.build()
-    assert.equal(built.isNewRecord, true)
-    assert.equal(built.organization?.isNewRecord, true)
-    assert.equal(await User.count(), 0)
-    assert.equal(await Organization.count(), 0)
-
-    // create persists the association, resolves its FK, runs hooks, and saves.
-    const saved = await userFactory.transient({ prefix: "Member" }).create()
-    assert.equal(saved.name, "Member 1")
-    const reloaded = await User.findByPk(saved.id, { include: ["organization"] })
-    assert.equal(reloaded?.organization?.name, saved.organization?.name)
-    assert.equal(await Organization.count(), 1)
-
-    // Existing FK or persisted instance overrides do not create extra parents.
-    const overrides: FactoryParams<User> = { organizationId: saved.organizationId }
-    await userFactory.create(overrides)
-    await userFactory.associations({ organization: saved.organization! }).create()
-    assert.equal(await Organization.count(), 1)
-
-    // Call-time parameters override chained defaults and generator attributes.
-    const named = userFactory.params({ name: "Default" }).build({ name: "Override" })
-    assert.equal(named.name, "Override")
-    console.log("Packed consumer PASS: typed build, persisted association, overrides, transient, hooks")
   } finally {
     await sequelize.close()
   }
