@@ -10,218 +10,241 @@ The supported runtime is Node.js 22 or 24, with **exactly Sequelize 7.0.0-alpha.
 
 The intended registry name is the unscoped `factory-shark`: the registry returned 404 during extraction. This is an availability observation, not a reservation or proof of publishing rights. No npm organization scope is assumed; the maintainer must authenticate and recheck name availability before the first publish.
 
-## Define, Build, and Create
+## Define Factories Alongside Your Tests
 
-This complete example uses SQLite only to make the persistence boundary runnable. Applications can use their own supported Sequelize dialect. Install the matching SQLite dialect and driver in the consumer to run it: `npm install @sequelize/sqlite3@7.0.0-alpha.48 sqlite3`.
+Use your application's existing Sequelize models and shared test setup. Model registration, migrations, and database cleanup belong in that setup—not in each factory or test.
+
+These examples follow [WRAP's factory modules](https://github.com/icefoganalytics/wrap/tree/24ce6097a1f2c4d87a09dddcec88e33b8859782b/api/tests/factories): Faker-generated attributes, default-exported factories, lazy association overrides, transient parameters, and opt-in relationship helpers. Relative imports keep the standalone examples portable; WRAP uses its `@/models` and `@/factories` aliases for the same dependencies.
+
+The examples assume your application already has the referenced models and supporting organization, category, workflow-player, and workflow-access factories. Faker and Vitest are development dependencies of the consuming application, not FactoryShark runtime dependencies. The package smoke supplies small SQLite models and supporting factories, then compiles and runs the code below unchanged against the installed tarball.
+
+### `factories/user-factory.ts`
+
+Transient roles are opt-in test data. The after-create hook persists them after the user has an ID, then reloads the association for callers that need it.
 
 ```typescript
-import assert from "node:assert/strict"
+import { faker } from "@faker-js/faker"
 
-import type {
-  CreationOptional,
-  InferAttributes,
-  InferCreationAttributes,
-  NonAttribute,
-} from "@sequelize/core"
-import { DataTypes, Model, Sequelize } from "@sequelize/core"
-import { SqliteDialect } from "@sequelize/sqlite3"
+import FactoryShark from "factory-shark"
 
-import type { FactoryParams } from "factory-shark"
-import { FactoryShark } from "factory-shark"
-
-class Organization extends Model<
-  InferAttributes<Organization>,
-  InferCreationAttributes<Organization>
-> {
-  declare id: CreationOptional<number>
-  declare name: string
-}
-
-class User extends Model<InferAttributes<User>, InferCreationAttributes<User>> {
-  declare id: CreationOptional<number>
-  declare name: string
-  declare organizationId: number
-  declare organization?: NonAttribute<Organization>
-}
+import { Role, User } from "../models"
+import type { RoleTypes } from "../models/role"
 
 type UserTransientParams = {
-  prefix?: string
+  roles?: RoleTypes[]
 }
 
-const organizationFactory = FactoryShark.define(Organization, ({ sequence }) => ({
-  name: `Organization ${sequence}`,
-}))
-
-const userFactory = FactoryShark.define<User, UserTransientParams>(
+export const userFactory = FactoryShark.define<User, UserTransientParams>(
   User,
-  ({ sequence, associate, transient, beforeCreate, afterCreate }) => {
-    associate("organization", organizationFactory)
-
-    beforeCreate((user) => {
-      assert.ok(user.organizationId)
-      assert.equal(user.isNewRecord, true)
-    })
-
+  ({ sequence, afterCreate, transient }) => {
     afterCreate(async (user) => {
-      assert.equal(user.isNewRecord, false)
+      if (transient.roles) {
+        const rolesAttributes = transient.roles.map((role) => ({
+          userId: user.id,
+          role,
+        }))
+
+        await Role.bulkCreate(rolesAttributes)
+        await user.reload({
+          include: ["roles"],
+        })
+      }
     })
 
-    const prefix = transient.prefix ?? "User"
+    const firstName = `${faker.person.firstName()}-${sequence}`
+    const lastName = faker.person.lastName()
+    const email = faker.internet.email({
+      firstName,
+      lastName,
+    })
 
     return {
-      name: `${prefix} ${sequence}`,
+      authSubject: email,
+      email,
+      firstName,
+      lastName,
     }
   }
 )
 
-function initializeModels(sequelize: Sequelize) {
-  Organization.init(
-    {
-      id: {
-        type: DataTypes.INTEGER,
-        primaryKey: true,
-        autoIncrement: true,
-      },
-      name: {
-        type: DataTypes.STRING,
-        allowNull: false,
-      },
-    },
-    {
-      sequelize,
-      timestamps: false,
-    }
-  )
+export default userFactory
+```
 
-  User.init(
-    {
-      id: {
-        type: DataTypes.INTEGER,
-        primaryKey: true,
-        autoIncrement: true,
-      },
-      name: {
-        type: DataTypes.STRING,
-        allowNull: false,
-      },
-      organizationId: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
-      },
-    },
-    {
-      sequelize,
-      timestamps: false,
-    }
-  )
+### `factories/workflow-factory.ts`
 
-  User.belongsTo(Organization, {
-    as: "organization",
-    foreignKey: "organizationId",
-  })
-}
+The category's lazy override receives the organization's resolved foreign key. The `accessibleBy` helper adds its related records only when a test explicitly asks for them.
 
-async function verifyBuildWithoutPersistence() {
-  const user = userFactory.build()
+```typescript
+import { faker } from "@faker-js/faker"
 
-  assert.equal(user.isNewRecord, true)
-  assert.equal(user.organization?.isNewRecord, true)
+import type { FactoryInterface, GeneratorFn } from "factory-shark"
+import FactoryShark from "factory-shark"
 
-  const userCount = await User.count()
-  assert.equal(userCount, 0)
+import { User, Workflow } from "../models"
 
-  const organizationCount = await Organization.count()
-  assert.equal(organizationCount, 0)
-}
+import organizationFactory from "./organization-factory"
+import userFactory from "./user-factory"
+import workflowAccessByUserFactory from "./workflow-access-by-user-factory"
+import workflowCategoryFactory from "./workflow-category-factory"
+import workflowPlayerFactory from "./workflow-player-factory"
 
-async function verifyCreateWithAssociation() {
-  const memberFactory = userFactory.transient({
-    prefix: "Member",
-  })
-  const user = await memberFactory.create()
-
-  assert.equal(user.name, "Member 1")
-
-  const organization = user.organization
-  assert.ok(organization)
-
-  const reloadedUser = await User.findByPk(user.id, {
-    include: ["organization"],
-  })
-  assert.equal(reloadedUser?.organization?.name, organization.name)
-
-  return organization
-}
-
-async function verifyForeignKeyOverride(organizationId: number) {
-  const overrides: FactoryParams<User> = {
-    organizationId,
+class WorkflowFactory extends FactoryShark<Workflow> {
+  constructor(generator: GeneratorFn<Workflow>) {
+    super(Workflow, generator, {})
   }
 
-  await userFactory.create(overrides)
+  accessibleBy(user: User): FactoryInterface<Workflow> {
+    return this.afterCreate(async (workflow) => {
+      const workflowPlayer = await workflowPlayerFactory.create({
+        workflowId: workflow.id,
+        userId: user.id,
+      })
 
-  const organizationCount = await Organization.count()
-  assert.equal(organizationCount, 1)
+      await workflowAccessByUserFactory.create({
+        workflowId: workflow.id,
+        userId: user.id,
+        workflowPlayerId: workflowPlayer.id,
+      })
+    })
+  }
 }
 
-async function verifyAssociationOverride(organization: Organization) {
-  const existingOrganizationFactory = userFactory.associations({
-    organization,
-  })
+export const workflowFactory = new WorkflowFactory(({ sequence, associate }) => {
+  associate("organization", organizationFactory)
 
-  await existingOrganizationFactory.create()
+  associate("category", workflowCategoryFactory, ({ organizationId }) => ({
+    organizationId,
+  }))
 
-  const organizationCount = await Organization.count()
-  assert.equal(organizationCount, 1)
-}
+  associate("creator", userFactory)
 
-function verifyAttributePrecedence() {
-  const defaultNameFactory = userFactory.params({
-    name: "Default",
-  })
+  return {
+    status: Workflow.Statuses.OPEN,
+    title: `${faker.location.country()}-${sequence}`,
+  }
+})
 
-  const user = defaultNameFactory.build({
-    name: "Override",
-  })
+export default workflowFactory
+```
 
-  assert.equal(user.name, "Override")
-}
+## Use Factories in Focused Tests
 
-async function main() {
-  const sequelize = new Sequelize({
-    dialect: SqliteDialect,
-    storage: ":memory:",
-    logging: false,
-    pool: {
-      max: 1,
-      idle: Infinity,
-      maxUses: Infinity,
-    },
-  })
+As in WRAP, these Vitest examples use global `describe`, `test`, and `expect`, initialized application models, and shared database cleanup between tests. Each test owns its scenario data and one primary expectation. Testing a returned model's state is separate from testing persisted records.
 
-  try {
-    initializeModels(sequelize)
-    await sequelize.sync({
-      force: true,
+### `workflow-factory.test.ts`
+
+```typescript
+import { Workflow, WorkflowAccessByUser } from "./models"
+
+import organizationFactory from "./factories/organization-factory"
+import userFactory from "./factories/user-factory"
+
+import workflowFactory from "./factories/workflow-factory"
+
+describe("factories/workflow-factory.ts", () => {
+  describe("WorkflowFactory", () => {
+    describe("#build", () => {
+      test("when built without saving, returns an unsaved workflow", () => {
+        // Arrange
+        const workflowAttributes = {
+          title: "Draft review",
+        }
+
+        // Act
+        const workflow = workflowFactory.build(workflowAttributes)
+
+        // Assert
+        expect(workflow.isNewRecord).toBe(true)
+      })
     })
 
-    await verifyBuildWithoutPersistence()
-    const organization = await verifyCreateWithAssociation()
-    await verifyForeignKeyOverride(organization.id)
-    await verifyAssociationOverride(organization)
-    verifyAttributePrecedence()
+    describe("#create", () => {
+      test("when provided attributes, persists the workflow", async () => {
+        // Arrange
+        const workflowAttributes = {
+          title: "Budget review",
+        }
 
-    console.log(
-      "Packed consumer PASS: typed build, persisted association, overrides, transient, hooks"
-    )
-  } finally {
-    await sequelize.close()
-  }
-}
+        // Act
+        await workflowFactory.create(workflowAttributes)
 
-main().catch((error) => {
-  console.error(error)
-  process.exitCode = 1
+        // Assert
+        const workflows = await Workflow.findAll()
+        expect(workflows).toEqual([
+          expect.objectContaining({
+            title: "Budget review",
+          }),
+        ])
+      })
+
+      test("when creating its category, reuses the workflow organization", async () => {
+        // Arrange
+        const organization = await organizationFactory.create()
+
+        // Act
+        const workflow = await workflowFactory.create({
+          organizationId: organization.id,
+        })
+
+        // Assert
+        expect(workflow.category?.organizationId).toBe(organization.id)
+      })
+    })
+
+    describe("#accessibleBy", () => {
+      test("when access is requested, creates access for the supplied user", async () => {
+        // Arrange
+        const user1 = await userFactory.create()
+        const accessibleWorkflowFactory = workflowFactory.accessibleBy(user1)
+
+        // Act
+        const workflow = await accessibleWorkflowFactory.create()
+
+        // Assert
+        const workflowAccessByUsers = await WorkflowAccessByUser.findAll()
+        expect(workflowAccessByUsers).toEqual([
+          expect.objectContaining({
+            workflowId: workflow.id,
+            userId: user1.id,
+          }),
+        ])
+      })
+    })
+  })
+})
+```
+
+### `user-factory.test.ts`
+
+```typescript
+import { Role } from "./models"
+import { RoleTypes } from "./models/role"
+
+import userFactory from "./factories/user-factory"
+
+describe("factories/user-factory.ts", () => {
+  describe("userFactory", () => {
+    describe("#transient", () => {
+      test("when roles are requested, persists the requested user role", async () => {
+        // Arrange
+        const administratorFactory = userFactory.transient({
+          roles: [RoleTypes.SYSTEM_ADMIN],
+        })
+
+        // Act
+        const user = await administratorFactory.create()
+
+        // Assert
+        const roles = await Role.findAll()
+        expect(roles).toEqual([
+          expect.objectContaining({
+            userId: user.id,
+            role: RoleTypes.SYSTEM_ADMIN,
+          }),
+        ])
+      })
+    })
+  })
 })
 ```
 
@@ -245,8 +268,8 @@ Import from `factory-shark` only; internal deep imports are not exported. The de
 
 ## Contribute and Release
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, isolated tests, and release commands. `npm run check` type-checks the library/tests, runs real SQLite scenarios, then packs and installs the artifact into a temporary external consumer, compiling and executing the example above. CI runs this command on Node 22 and 24.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, isolated tests, and release commands. `npm run check` type-checks the library/tests, runs real SQLite scenarios, then packs and installs the artifact into a temporary external consumer. It compiles every TypeScript example above and executes the documented Vitest tests against isolated SQLite models. CI runs this command on Node 22 and 24.
 
 ## License and Provenance
 
-New original infrastructure and documentation are [MIT licensed](LICENSE). The implementation extracted from [WRAP at 24ce6097a1f2c4d87a09dddcec88e33b8859782b](https://github.com/icefoganalytics/wrap/tree/24ce6097a1f2c4d87a09dddcec88e33b8859782b/api/src/lib/factory-shark) and adapted behavioral coverage retain [Apache-2.0 terms](LICENSE-APACHE). See [NOTICE](NOTICE) for provenance and the upstream metadata conflict. Both licenses and attribution are included in the tarball; the extracted material is not relicensed MIT-only.
+New original infrastructure and documentation prose are [MIT licensed](LICENSE). The implementation extracted from [WRAP at 24ce6097a1f2c4d87a09dddcec88e33b8859782b](https://github.com/icefoganalytics/wrap/tree/24ce6097a1f2c4d87a09dddcec88e33b8859782b/api/src/lib/factory-shark), adapted factory examples, and behavioral coverage retain [Apache-2.0 terms](LICENSE-APACHE). See [NOTICE](NOTICE) for provenance and the upstream metadata conflict. Both licenses and attribution are included in the tarball; the extracted material is not relicensed MIT-only.
