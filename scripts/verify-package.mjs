@@ -54,7 +54,7 @@ function installConsumerDependencies(archivePath) {
       sqlite3: "5.1.7",
     },
     devDependencies: {
-      typescript: "5.9.3",
+      typescript: "5.4.5",
       "@types/node": "22",
       "@faker-js/faker": "8.4.1",
       vitest: "4.1.5",
@@ -96,7 +96,7 @@ function writeConsumerExamples() {
 
   const compilerConfiguration = {
     compilerOptions: {
-      target: "ES2022",
+      target: "ES2020",
       module: "Node16",
       moduleResolution: "Node16",
       strict: true,
@@ -141,6 +141,9 @@ function verifyTypedConsumer() {
 }
 
 function verifyCommonJsConsumer() {
+  const pruneOutput = runCommand("npm", ["prune", "--omit=dev", "--no-audit", "--no-fund"])
+  console.log(pruneOutput)
+
   const commonJsExample = `
     const assert = require("node:assert/strict")
     const { FactoryShark } = require("factory-shark")
@@ -161,7 +164,7 @@ function verifyCommonJsConsumer() {
         const user = userFactory.build()
 
         assert.equal(user.firstName, "CommonJS")
-        console.log("CommonJS consumer PASS: factory build")
+        console.log("CommonJS runtime-only consumer PASS: factory build")
       } finally {
         await sequelize.close()
       }
