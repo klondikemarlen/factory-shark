@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.0
+
+- Stabilize the extracted WRAP factory API without changing runtime behavior, public exports, association precedence, or hook ordering.
+- Verify documented factory usage with WRAP's TypeScript 5.4.5, ES2020 target, and Node16 module resolution.
+- Exercise CommonJS factory builds with consumer development dependencies omitted; clarify test-only versus runtime dependency placement and the embedded-library import cutover.
+
 ## 0.1.0
 
 - Extract FactoryShark from WRAP revision `24ce6097a1f2c4d87a09dddcec88e33b8859782b`, retaining its factory, association, hook, and root-export contracts.
