@@ -2,8 +2,10 @@
 
 ## Unreleased
 
+- Rewrite the README around factory usage, the Sequelize association design, and the robotic-shark name; remove inaccessible private-source links.
+- Standardize the project and new original work on Apache-2.0; previously published releases retain their original terms.
+- Add a project knowledge base with durable architecture, decision, and QA guidance.
 - Use WRAP's root application imports throughout README examples and supporting factory fixtures; resolve the aliases in both TypeScript and the executable packed-consumer smoke.
-- Restore the fishery-bot naming history and rename rationale from WRAP commits; distinguish the original Fishery companion library from the current standalone implementation.
 
 ## 1.0.0
 
@@ -13,7 +15,7 @@
 
 ## 0.1.0
 
-- Extract FactoryShark from WRAP revision `24ce6097a1f2c4d87a09dddcec88e33b8859782b`, retaining its factory, association, hook, and root-export contracts.
+- Extract FactoryShark from WRAP, retaining its factory, association, hook, and root-export contracts.
 - Package CommonJS runtime code and TypeScript declarations for Node.js 22/24 and Sequelize 7.0.0-alpha.48.
 - Add isolated SQLite behavior/type checks, a packed-consumer smoke using the README example, and CI.
 - Apply the project coding conventions to library code, README examples, tests, and package verification; enforce formatting through the normal checks.
