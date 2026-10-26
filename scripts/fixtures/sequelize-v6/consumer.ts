@@ -10,7 +10,8 @@ import type {
 } from "sequelize"
 import { DataTypes, Model, Sequelize } from "sequelize"
 
-import { FactoryShark, type FactoryInterface, type FactoryParams } from "factory-shark/sequelize-v6"
+import { FactoryContext, FactoryShark } from "factory-shark/sequelize-v6"
+import type { FactoryInterface, FactoryParams } from "factory-shark/sequelize-v6"
 
 class OrganizationRecord extends Model<
   InferAttributes<OrganizationRecord>,
@@ -161,7 +162,7 @@ function createFixture(): Fixture {
     }
   })
   const projectFactory = FactoryShark.define(Project, ({ sequence, associate }) => {
-    associate("organization", organizationFactory)
+    associate<OrganizationRecord>("organization", organizationFactory)
     associate("category", categoryFactory, ({ organizationId }) => ({
       organizationId,
     }))
@@ -272,8 +273,13 @@ export function checkInstalledConsumerTypes(
   const organizationFactory = FactoryShark.define(Organization, ({ sequence }) => ({
     name: `Typed organization ${sequence}`,
   }))
+  const factoryContext = new FactoryContext(Project)
+  factoryContext.associate<OrganizationRecord>("organization", organizationFactory)
+  factoryContext.registrations[0].instance.get("id")
+  void factoryContext.registrations[0].create({}).then((model) => model.get("id"))
+
   FactoryShark.define(Project, ({ associate }) => {
-    associate("organization", organizationFactory)
+    associate<OrganizationRecord>("organization", organizationFactory)
 
     // @ts-expect-error Association registration rejects unknown names.
     associate("missing", organizationFactory)
