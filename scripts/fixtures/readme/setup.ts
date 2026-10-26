@@ -1,4 +1,4 @@
-import { initializeModels } from "./initialize-models"
+import { initializeModels } from "@/initialize-models"
 
 const sequelize = initializeModels()
 

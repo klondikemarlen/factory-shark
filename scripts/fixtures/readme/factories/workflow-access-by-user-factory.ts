@@ -2,11 +2,11 @@
 // Original factory code is Apache-2.0; see LICENSE-APACHE in the repository.
 import FactoryShark from "factory-shark"
 
-import { WorkflowAccessByUser } from "../models"
+import { WorkflowAccessByUser } from "@/models"
 
-import userFactory from "./user-factory"
-import workflowFactory from "./workflow-factory"
-import workflowPlayerFactory from "./workflow-player-factory"
+import userFactory from "@/factories/user-factory"
+import workflowFactory from "@/factories/workflow-factory"
+import workflowPlayerFactory from "@/factories/workflow-player-factory"
 
 export const workflowAccessByUserFactory = FactoryShark.define(
   WorkflowAccessByUser,

@@ -1,12 +1,11 @@
 // Adapted from WRAP factories at revision 24ce6097a1f2c4d87a09dddcec88e33b8859782b.
 // Original factory code is Apache-2.0; see LICENSE-APACHE in the repository.
 import { faker } from "@faker-js/faker"
-
 import FactoryShark from "factory-shark"
 
-import { Organization } from "../models"
+import { Organization } from "@/models"
 
-import sequenceFactory from "./sequence-factory"
+import sequenceFactory from "@/factories/sequence-factory"
 
 export const organizationFactory = FactoryShark.define(Organization, ({ sequence, associate }) => {
   associate("sequence", sequenceFactory)
