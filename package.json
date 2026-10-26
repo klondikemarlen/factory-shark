@@ -2,7 +2,7 @@
   "name": "factory-shark",
   "version": "1.0.0",
   "description": "TypeScript test factories for Sequelize with declarative associations",
-  "license": "MIT AND Apache-2.0",
+  "license": "Apache-2.0",
   "author": "Marlen",
   "repository": {
     "type": "git",
@@ -31,7 +31,6 @@
     "dist",
     "src",
     "LICENSE",
-    "LICENSE-APACHE",
     "NOTICE",
     "README.md"
   ],
