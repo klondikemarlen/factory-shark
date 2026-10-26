@@ -1,0 +1,23 @@
+# Consumer Verification
+
+FactoryShark needs two kinds of evidence: isolated scenarios for factory behavior and an installed consumer for packaging and documented usage. Use the commands and prerequisites in [CONTRIBUTING.md](/CONTRIBUTING.md); this page explains their coverage.
+
+## Library Behavior
+
+`npm test` runs the [factory scenarios](/tests/factory.test.ts) against real in-memory SQLite models. Scenarios distinguish returned model state from persisted records and cover unsaved builds, association creation and reuse, override precedence, sequences, conditional registration, and hook timing and failure behavior. Type-safety cases are checked by `npm run typecheck`.
+
+The [SQLite fixture](/tests/support.ts) creates fresh model subclasses for each scenario. Sequelize binds an initialized model class to one database instance; closing that database does not make the class reusable for another initialization. Preserve this isolation when adding scenarios.
+
+## Installed Package and README
+
+`npm run smoke` uses [the package verifier](/scripts/verify-package.mjs) to build and pack the current checkout, inspect the artifact, and install it in a temporary external consumer. It verifies the installed package metadata, compiles every README TypeScript block as its documented file, and runs the README's Vitest scenarios against real SQLite fixtures.
+
+The consumer configures `@/` in both TypeScript and Vitest. README application imports—including sibling and type-only imports—must remain unchanged during extraction. A compiler-only path mapping does not prove runtime alias resolution. Model setup and supporting factories live in [the smoke fixtures](/scripts/fixtures/readme), outside the user-facing README examples.
+
+The final CommonJS smoke omits consumer development dependencies and builds a model through the installed package. Its model-initialization harness intentionally retains a relative runtime import: Node's CommonJS loader does not implement TypeScript path aliases. Application factory examples continue to use root aliases.
+
+## What These Checks Do Not Prove
+
+A local tarball install does not prove npm publication or installation of a registry release. Follow the separately authorized release procedure for registry artifact identity and fresh-consumer checks. SQLite coverage does not claim a running WRAP application or every database dialect was exercised.
+
+`npm run check` combines formatting, type checking, library scenarios, and the consumer smoke. CI runs that gate on Node.js 22 and 24 without path filters. Keep concrete execution results in the pull request or session, not as permanent status assertions in this knowledge base.
