@@ -4,9 +4,9 @@ FactoryShark needs two kinds of evidence: isolated scenarios for factory behavio
 
 ## Library Behavior
 
-`npm test` runs the [factory scenarios](/tests/factory.test.ts) against real in-memory SQLite models. Scenarios distinguish returned model state from persisted records and cover unsaved builds, association creation and reuse, override precedence, sequences, conditional registration, and hook timing and failure behavior. Type-safety cases are checked by `npm run typecheck`.
+`npm test` runs factory scenarios against Sequelize 6.37.8 and @sequelize/core 7.0.0-alpha.48 with real in-memory SQLite models. Scenarios distinguish returned model state from persisted records and cover unsaved builds, association creation and reuse, override precedence, sequences, conditional registration, and hook timing and failure behavior. Type-safety cases are checked by `npm run typecheck`.
 
-The [SQLite fixture](/tests/support.ts) creates fresh model subclasses for each scenario. Sequelize binds an initialized model class to one database instance; closing that database does not make the class reusable for another initialization. Preserve this isolation when adding scenarios.
+The [v7 SQLite fixture](/tests/support.ts) creates fresh model subclasses for each scenario. Sequelize 7 binds an initialized model class to one database instance; closing that database does not make the class reusable for another initialization. Preserve isolated model classes and databases when adding scenarios for either integration.
 
 ## Installed Package and README
 
@@ -15,6 +15,12 @@ The [SQLite fixture](/tests/support.ts) creates fresh model subclasses for each 
 The consumer configures `@/` in both TypeScript and Vitest. README application imports—including sibling and type-only imports—must remain unchanged during extraction. A compiler-only path mapping does not prove runtime alias resolution. Model setup and supporting factories live in [the smoke fixtures](/scripts/fixtures/readme), outside the user-facing README examples.
 
 The final CommonJS smoke omits consumer development dependencies and builds a model through the installed package. Its model-initialization harness intentionally retains a relative runtime import: Node's CommonJS loader does not implement TypeScript path aliases. Application factory examples continue to use root aliases.
+
+## Isolated Version Consumers
+
+The v6 smoke installs the artifact with `sequelize@6.37.8`, SQLite, and TypeScript, but without `@sequelize/core` or the v7 dialect package. It checks that the v7 package is absent, compiles the public entry point with `skipLibCheck: false`, and executes real nested association and hook behavior. Successful v6 runtime behavior alone is not sufficient: a leaked v7 declaration import would still break a v6-only application's build.
+
+The existing v7 consumer continues to exercise root imports and documented factory subclasses. Keep both integration consumers in the same release gate. The [compatibility guide](/docs/architecture/sequelize-compatibility.md) owns version selection and the process for adding a newly qualified release.
 
 ## What These Checks Do Not Prove
 

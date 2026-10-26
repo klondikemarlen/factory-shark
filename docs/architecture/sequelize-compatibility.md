@@ -13,6 +13,12 @@ The root entry point remains the v7 integration so existing projects do not need
 
 The compatibility entry points are available in the source build. Published npm version 1.0.0 predates the v6 integration; a local packed artifact is not proof that a newer registry release exists. Follow the authorized release procedure in [CONTRIBUTING.md](/CONTRIBUTING.md) before documenting a new published version.
 
+## Trying the Source Build
+
+In a FactoryShark checkout, run `npm ci` followed by `npm pack --json`. The pack output identifies the `.tgz` filename. Install that artifact from your application's checkout with `npm install --save-dev <tarball-path>`, replacing `<tarball-path>` with its actual path, and import the integration matching your application's Sequelize package.
+
+The artifact retains the source package version until a versioned release is prepared. Use its file path and recorded integrity to identify a local build; do not confuse it with the existing registry artifact of the same version.
+
 ## Boundary and Ownership
 
 The engine depends on the operations it needs, not on either package's complete model class. The compatibility layer supplies model construction and persistence, instance access, association metadata, and target lookup. Version-specific public types preserve the application's model and creation-attribute types. The v6 declarations must not import v7 declarations transitively, and the v7 entry point must preserve existing factory subclasses and static model-class typing.
@@ -29,6 +35,6 @@ Organize adapters by real API differences, not one directory per patch number. R
 4. If the release fits the existing adapter, extend its tested scope and peer range deliberately. If the public protocol differs, add a small integration implementation and reuse the engine. Publish a new entry point only when consumers need to select a distinct contract.
 5. Update this table, the README's selection guidance, and the consumer verification guide in the same reviewed delivery. Registry publication needs its own observed artifact and installation evidence.
 
-The stable v6 peer range allows compatible patch releases, while the development and smoke dependencies pin the release actually checked. The v7 alpha remains exact because prerelease APIs can change without the stability guarantees of a final major release. Future versions are candidates for qualification, not automatic compatibility promises.
+The stable v6 peer range allows compatible minor and patch releases, while the development and smoke dependencies pin the release actually checked. The v7 alpha remains exact because prerelease APIs can change without the stability guarantees of a final major release. Future versions are candidates for qualification, not automatic compatibility promises.
 
 The model contract still uses `id` primary keys and `belongsTo` associations. Version compatibility does not add association kinds or change transaction and failure semantics; see [factory evaluation](/docs/architecture/factory-evaluation.md).
