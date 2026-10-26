@@ -12,6 +12,8 @@ The [v7 SQLite fixture](/tests/support.ts) creates fresh model subclasses for ea
 
 `npm run smoke` uses [the package verifier](/scripts/verify-package.mjs) to build and pack the current checkout, inspect the artifact, and install it in a temporary external consumer. It verifies the installed package metadata, compiles every README TypeScript block as its documented file, and runs the README's Vitest scenarios against real SQLite fixtures.
 
+The [build command](/scripts/build.mjs) clears `dist/` before compiling. Preserve this clean cutover when removing or renaming an integration module: TypeScript compilation alone does not delete obsolete emitted files, and a stale module must not remain in a release artifact.
+
 The consumer configures `@/` in both TypeScript and Vitest. README application imports—including sibling and type-only imports—must remain unchanged during extraction. A compiler-only path mapping does not prove runtime alias resolution. Model setup and supporting factories live in [the smoke fixtures](/scripts/fixtures/readme), outside the user-facing README examples.
 
 The final CommonJS smoke omits consumer development dependencies and builds a model through the installed package. Its model-initialization harness intentionally retains a relative runtime import: Node's CommonJS loader does not implement TypeScript path aliases. Application factory examples continue to use root aliases.
@@ -21,6 +23,8 @@ The final CommonJS smoke omits consumer development dependencies and builds a mo
 The v6 smoke installs the artifact with `sequelize@6.37.8`, SQLite, and TypeScript, but without `@sequelize/core` or the v7 dialect package. It checks that the v7 package is absent, compiles the public entry point with `skipLibCheck: false`, and executes real nested association and hook behavior. Successful v6 runtime behavior alone is not sufficient: a leaked v7 declaration import would still break a v6-only application's build.
 
 The existing v7 consumer continues to exercise root imports and documented factory subclasses. Keep both integration consumers in the same release gate. The [compatibility guide](/docs/architecture/sequelize-compatibility.md) owns version selection and the process for adding a newly qualified release.
+
+Public declaration checks include explicit `associate<Model>(...)` calls, concrete `modelClass` static methods, and native model members on context registrations and their created results. Keep these source-compatible usages when changing the integration types; inferred generator calls alone do not cover the public TypeScript API.
 
 ## What These Checks Do Not Prove
 
