@@ -18,5 +18,10 @@ New original package infrastructure, model projections, and documentation prose
 are covered by the MIT license in LICENSE. The distribution combines these terms;
 it is not an MIT-only grant for the extracted or adapted material.
 
-FactoryShark is inspired by Fishery and factory_bot. No Fishery implementation
-was copied, and Fishery is not a runtime dependency.
+FactoryShark began in WRAP as fishery-bot, a Fishery companion library for
+Sequelize association persistence, inspired by factory_bot:
+https://github.com/icefoganalytics/wrap/blob/8f1285b58f55985325d9954eab1dc98fb08ced69/api/src/lib/fishery-bot/README.md
+WRAP later introduced its own factory implementation and renamed the library:
+https://github.com/icefoganalytics/wrap/commit/1e01afedebf9b81330bc5a9f31349c058fe8a758
+https://github.com/icefoganalytics/wrap/commit/29e96c92aff67ca033e2430abcecddcab941a061
+Fishery is not a runtime dependency of the current standalone package.
