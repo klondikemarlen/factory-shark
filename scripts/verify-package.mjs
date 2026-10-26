@@ -99,6 +99,10 @@ function writeConsumerExamples() {
       target: "ES2020",
       module: "Node16",
       moduleResolution: "Node16",
+      baseUrl: resolve(consumerDirectory),
+      paths: {
+        "@/*": ["*"],
+      },
       strict: true,
       esModuleInterop: true,
       skipLibCheck: true,
@@ -111,6 +115,11 @@ function writeConsumerExamples() {
   writeFileSync(join(consumerDirectory, "tsconfig.json"), JSON.stringify(compilerConfiguration))
 
   const vitestConfiguration = {
+    resolve: {
+      alias: {
+        "@": resolve(consumerDirectory),
+      },
+    },
     test: {
       globals: true,
       setupFiles: ["./setup.ts"],

@@ -20,8 +20,10 @@ Changes follow an issue-linked branch and PR. Keep extraction behavior stable un
 
 Run `npm run format` before submitting changes. The checked-in Prettier configuration uses two-space indentation, double quotes, no semicolons, and trailing commas where supported by ES5. `npm run check` includes the format check, so CI checks the same files and README code examples as local development. Generated output, installed dependencies, tarballs, and the npm-generated lockfile are not formatter inputs.
 
-- Keep multi-property objects and types expanded, including Sequelize schemas, options, and assertion expectations. Give each callback statement its own line and separate logical steps with one blank line.
+- Keep non-empty objects and types expanded, including Sequelize schemas, options, and assertion expectations. Give each callback statement its own line and separate logical steps with one blank line.
 - Group imports by standard library, third-party dependencies, then local modules. Mark type-only bindings explicitly and keep them together within each group; do not interleave them with runtime bindings.
+- README application examples and their supporting factory fixtures use WRAP's root aliases (`@/models`, `@/factories`), including sibling and type-only imports. Keep relative barrel re-exports. The smoke consumer must configure matching TypeScript and test-runner resolution and execute the examples unchanged; do not replace aliases with relative imports for portability. This does not change the standalone library's relative internal imports or its package-root public entry point.
+- Keep the module under test in its own final import group, separated from model, support, and factory dependencies by a blank line.
 - Use explanatory names and named parameter types instead of dense inline generic shapes. Preserve type predicates, conditional types, and explicit return types that protect a public or recursive contract.
 - Use explicit `if`/`else` branches instead of runtime ternaries. Prefer Lodash `isUndefined` for undefined checks. Keep necessary TypeScript conditional types; they describe type relationships rather than runtime control flow.
 - Break dense fluent expressions into named steps when that makes precedence or effects easier to follow. Extract a helper only when it names a meaningful responsibility, not merely to shorten a line.

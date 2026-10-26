@@ -7,7 +7,7 @@ import type {
   NonAttribute,
 } from "@sequelize/core"
 
-import type { RoleTypes } from "./role"
+import type { RoleTypes } from "@/models/role"
 
 export class Sequence extends Model<InferAttributes<Sequence>, InferCreationAttributes<Sequence>> {
   declare id: CreationOptional<number>
