@@ -21,7 +21,17 @@ function runCommand(command, argumentsList, workingDirectory = consumerDirectory
 
 function verifyPackageContents(artifact) {
   const packedFiles = new Set(artifact.files.map((file) => file.path))
-  const requiredFiles = ["dist/index.js", "dist/index.d.ts", "dist/types.d.ts", "LICENSE", "NOTICE"]
+  const requiredFiles = [
+    "dist/index.js",
+    "dist/index.d.ts",
+    "dist/sequelize-v6.js",
+    "dist/sequelize-v6.d.ts",
+    "dist/sequelize-v7.js",
+    "dist/sequelize-v7.d.ts",
+    "dist/types.d.ts",
+    "LICENSE",
+    "NOTICE",
+  ]
 
   for (const requiredFile of requiredFiles) {
     assert.ok(packedFiles.has(requiredFile), `Missing packed file: ${requiredFile}`)
@@ -59,6 +69,105 @@ function installConsumerDependencies(archivePath) {
 
   const installOutput = runCommand("npm", ["install", "--no-audit", "--no-fund"])
   console.log(installOutput)
+}
+
+function installSequelizeV6Consumer(archivePath, v6ConsumerDirectory) {
+  const consumerManifest = {
+    name: "factory-shark-sequelize-v6-consumer",
+    version: "0.0.0",
+    private: true,
+    type: "commonjs",
+    dependencies: {
+      "factory-shark": `file:${archivePath}`,
+      sequelize: "6.37.8",
+      sqlite3: "5.1.7",
+    },
+    devDependencies: {
+      typescript: "5.4.5",
+      "@types/node": "22",
+    },
+  }
+  writeFileSync(join(v6ConsumerDirectory, "package.json"), JSON.stringify(consumerManifest))
+
+  const installOutput = runCommand(
+    "npm",
+    ["install", "--no-audit", "--no-fund"],
+    v6ConsumerDirectory
+  )
+  console.log(installOutput)
+}
+
+function writeSequelizeV6Consumer(v6ConsumerDirectory) {
+  const fixtureDirectory = join(projectRoot, "scripts/fixtures/sequelize-v6")
+  cpSync(fixtureDirectory, v6ConsumerDirectory, {
+    recursive: true,
+  })
+
+  const compilerConfiguration = {
+    compilerOptions: {
+      target: "ES2020",
+      module: "Node16",
+      moduleResolution: "Node16",
+      strict: true,
+      esModuleInterop: true,
+      skipLibCheck: false,
+      noEmitOnError: true,
+      outDir: "compiled",
+      types: ["node"],
+    },
+    include: ["**/*.ts"],
+  }
+  writeFileSync(join(v6ConsumerDirectory, "tsconfig.json"), JSON.stringify(compilerConfiguration))
+}
+
+function runSequelizeV6Consumer(archivePath, v6ConsumerDirectory) {
+  installSequelizeV6Consumer(archivePath, v6ConsumerDirectory)
+  writeSequelizeV6Consumer(v6ConsumerDirectory)
+
+  const dependencyCheck = `
+    const assert = require("node:assert/strict")
+    const { createRequire } = require("node:module")
+    const consumerRequire = createRequire(${JSON.stringify(join(v6ConsumerDirectory, "package.json"))})
+    const packageManifest = consumerRequire("factory-shark/package.json")
+
+    assert.equal(packageManifest.exports["./sequelize-v6"].require, "./dist/sequelize-v6.js")
+
+    for (const dependency of ["@sequelize/core", "@sequelize/sqlite3"]) {
+      assert.throws(() => consumerRequire.resolve(dependency), { code: "MODULE_NOT_FOUND" })
+    }
+
+    console.log("Sequelize 6 consumer dependency boundary PASS: no Sequelize 7 packages installed")
+  `
+  const dependencyOutput = runCommand(
+    process.execPath,
+    ["-e", dependencyCheck],
+    v6ConsumerDirectory
+  )
+  console.log(dependencyOutput)
+
+  const compilerPath = join(v6ConsumerDirectory, "node_modules/typescript/bin/tsc")
+  const compilerOutput = runCommand(process.execPath, [compilerPath], v6ConsumerDirectory)
+  console.log(compilerOutput)
+
+  const consumerOutput = runCommand(
+    process.execPath,
+    [join(v6ConsumerDirectory, "compiled/consumer.js")],
+    v6ConsumerDirectory
+  )
+  console.log(consumerOutput)
+}
+
+function verifySequelizeV6Consumer(archivePath) {
+  const v6ConsumerDirectory = mkdtempSync(join(tmpdir(), "factory-shark-sequelize-v6-consumer-"))
+
+  try {
+    runSequelizeV6Consumer(archivePath, v6ConsumerDirectory)
+  } finally {
+    rmSync(v6ConsumerDirectory, {
+      recursive: true,
+      force: true,
+    })
+  }
 }
 
 function writeConsumerExamples() {
@@ -214,6 +323,7 @@ try {
   verifyTypedConsumer()
   verifyCommonJsConsumer()
   verifyInstalledPackageMetadata()
+  verifySequelizeV6Consumer(archivePath)
 } finally {
   rmSync(consumerDirectory, {
     recursive: true,
