@@ -4,13 +4,15 @@ FactoryShark creates Sequelize test models and their declared `belongsTo` depend
 
 ## Responsibilities
 
-- [FactoryShark](/src/factory-shark.ts) is the consumer-facing factory definition and configuration API.
+- The [v7](/src/sequelize-v7.ts) and [v6](/src/sequelize-v6.ts) `FactoryShark` facades provide the consumer-facing API with each integration's model types.
 - [FactoryBuilder](/src/factory-builder.ts) owns configuration, sequences, and the build/create lifecycle.
 - [AttributeBuilder](/src/attribute-builder.ts) evaluates the generator once per operation and merges its attributes with resolved parameters.
 - [FactoryContext](/src/factory-context.ts) records association factories, foreign-key names, and lazy override callbacks during generation.
 - [AssociationManager](/src/association-manager.ts) resolves association overrides, creates dependencies, and attaches associated models.
 
 The generator can register hooks and associations conditionally using `params` and `transient`. Transient parameters affect generation and hooks, not database columns.
+
+Sequelize-specific model access belongs to the [compatibility layer](/docs/architecture/sequelize-compatibility.md). The integration supplies the host's model and creation-attribute types and translates runtime operations; evaluation and association ordering remain shared.
 
 ## Build and Create
 

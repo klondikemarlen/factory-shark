@@ -25,6 +25,16 @@
       "require": "./dist/index.js",
       "default": "./dist/index.js"
     },
+    "./sequelize-v6": {
+      "types": "./dist/sequelize-v6.d.ts",
+      "require": "./dist/sequelize-v6.js",
+      "default": "./dist/sequelize-v6.js"
+    },
+    "./sequelize-v7": {
+      "types": "./dist/sequelize-v7.d.ts",
+      "require": "./dist/sequelize-v7.js",
+      "default": "./dist/sequelize-v7.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -38,7 +48,7 @@
     "node": "^22.0.0 || ^24.0.0"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "node scripts/build.mjs",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts",
     "smoke": "node scripts/verify-package.mjs",
@@ -48,7 +58,16 @@
     "prepack": "npm run build"
   },
   "peerDependencies": {
-    "@sequelize/core": "7.0.0-alpha.48"
+    "@sequelize/core": "7.0.0-alpha.48",
+    "sequelize": "^6.37.8"
+  },
+  "peerDependenciesMeta": {
+    "@sequelize/core": {
+      "optional": true
+    },
+    "sequelize": {
+      "optional": true
+    }
   },
   "dependencies": {
     "lodash": "^4.17.21"
@@ -59,6 +78,7 @@
     "@types/lodash": "^4.17.20",
     "@types/node": "^22.20.0",
     "prettier": "3.9.10",
+    "sequelize": "6.37.8",
     "sqlite3": "^5.1.7",
     "tsx": "^4.23.15",
     "typescript": "5.9.3"

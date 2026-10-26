@@ -1,140 +1,101 @@
 // Originally from WRAP's FactoryShark; extracted and modified for standalone distribution.
 // Apache-2.0 terms and original attribution are preserved.
-import type { InferCreationAttributes, Model, ModelStatic } from "@sequelize/core"
 
-// ============================================================================
-// CORE FACTORY TYPES
-// ============================================================================
-
-/**
- * Type for factory instances returned by FactoryShark.define()
- */
-export type FactoryInterface<T extends Model, TransientParams = Record<string, never>> = {
-  build(params?: FactoryParams<T>): T
-  create(params?: FactoryParams<T>): Promise<T>
-  associations<A extends Model>(
+export type FactoryInterface<
+  T extends object,
+  Attributes extends object,
+  ModelClass,
+  TransientParams = Record<string, never>,
+> = {
+  build(params?: CoreFactoryParams<T, Attributes>): T
+  create(params?: CoreFactoryParams<T, Attributes>): Promise<T>
+  associations<A extends object>(
     associations: Record<string, A>
-  ): FactoryInterface<T, TransientParams>
-  params(params: FactoryParams<T>): FactoryInterface<T, TransientParams>
-  transient(params: Partial<TransientParams>): FactoryInterface<T, TransientParams>
-  afterCreate(hook: AfterCreateFn<T>): FactoryInterface<T, TransientParams>
-  beforeCreate(hook: BeforeCreateFn<T>): FactoryInterface<T, TransientParams>
-  modelClass: ModelStatic<T>
+  ): FactoryInterface<T, Attributes, ModelClass, TransientParams>
+  params(
+    params: CoreFactoryParams<T, Attributes>
+  ): FactoryInterface<T, Attributes, ModelClass, TransientParams>
+  transient(
+    params: Partial<TransientParams>
+  ): FactoryInterface<T, Attributes, ModelClass, TransientParams>
+  afterCreate(hook: AfterCreateFn<T>): FactoryInterface<T, Attributes, ModelClass, TransientParams>
+  beforeCreate(
+    hook: BeforeCreateFn<T>
+  ): FactoryInterface<T, Attributes, ModelClass, TransientParams>
+  modelClass: ModelClass
 }
 
-// ============================================================================
-// PARAMETER AND ATTRIBUTE TYPES
-// ============================================================================
-
-/**
- * Keys on T whose values are associations (Model or Model[]).
- */
 export type AssociationKeys<T> = {
-  [K in keyof T]: NonNullable<T[K]> extends Model | Model[] ? K : never
+  [K in keyof T]: NonNullable<T[K]> extends { isNewRecord: boolean; dataValues: object } ? K : never
 }[keyof T]
 
-/**
- * Association property names as string keys, usable as FactoryParams keys.
- */
-export type AssociationName<T extends Model> = AssociationKeys<T> & string
+export type AssociationName<T extends object> = AssociationKeys<T> & string
+export type ForeignKeyName<T extends object, Attributes extends object> = keyof Attributes &
+  keyof T &
+  string
 
-/**
- * Foreign key attribute names: string keys present on both the creation
- * attributes and the model. Used for FK overrides in FactoryParams.
- */
-export type ForeignKeyName<T extends Model> = keyof InferCreationAttributes<T> & keyof T & string
+type FactoryParamKeys<T extends object, Attributes extends object> =
+  keyof Attributes | AssociationKeys<T>
 
-type FactoryParamKeys<T extends Model> = keyof InferCreationAttributes<T> | AssociationKeys<T>
-
-/**
- * Factory params accepting both creation attributes and association instances.
- *
- * Uses a single mapped type (not an intersection) so that excess property
- * checking rejects invalid keys on object literals at call sites.
- */
-export type FactoryParams<T extends Model> = {
-  [K in FactoryParamKeys<T>]?: FactoryParamValue<T, K>
+export type CoreFactoryParams<T extends object, Attributes extends object> = {
+  [K in FactoryParamKeys<T, Attributes>]?: FactoryParamValue<T, Attributes, K>
 }
 
 type FactoryParamValue<
-  T extends Model,
-  K extends FactoryParamKeys<T>,
-> = K extends keyof InferCreationAttributes<T>
-  ? InferCreationAttributes<T>[K]
-  : K extends keyof T
-    ? T[K]
-    : never
+  T extends object,
+  Attributes extends object,
+  K extends FactoryParamKeys<T, Attributes>,
+> = K extends keyof Attributes ? Attributes[K] : K extends keyof T ? T[K] : never
 
-/**
- * Return type for generator functions.
- */
-export type GeneratorReturn<T extends Model> = {
-  [K in FactoryParamKeys<T>]?: FactoryParamValue<T, K>
-}
+export type CoreGeneratorReturn<T extends object, Attributes extends object> = CoreFactoryParams<
+  T,
+  Attributes
+>
 
-// ============================================================================
-// GENERATOR AND HOOK TYPES
-// ============================================================================
-
-/**
- * Context provided to factory generator functions.
- */
-export type GeneratorContext<T extends Model, TransientParams = Record<string, never>> = {
+export type GeneratorContext<
+  T extends object,
+  Attributes extends object,
+  ModelClass,
+  TransientParams = Record<string, never>,
+> = {
   sequence: number
-  params: FactoryParams<T>
-  associate: AssociateFunction<T>
+  params: CoreFactoryParams<T, Attributes>
+  associate: AssociateFunction<T, Attributes, ModelClass>
   afterCreate: (fn: AfterCreateFn<T>) => void
   beforeCreate: (fn: BeforeCreateFn<T>) => void
   transient: TransientParams
 }
 
-export type GeneratorFn<T extends Model, TransientParams = Record<string, never>> = (
-  context: GeneratorContext<T, TransientParams>
-) => GeneratorReturn<T>
-
-/**
- * Type-safe generator that enforces excess property checking via RejectExcessKeys.
- */
-export type StrictGeneratorFn<
-  T extends Model,
+export type GeneratorFn<
+  T extends object,
+  Attributes extends object,
+  ModelClass,
   TransientParams = Record<string, never>,
-  P extends GeneratorReturn<T> = GeneratorReturn<T>,
-> = (context: GeneratorContext<T, TransientParams>) => RejectExcessKeys<P, GeneratorReturn<T>>
+> = (
+  context: GeneratorContext<T, Attributes, ModelClass, TransientParams>
+) => CoreGeneratorReturn<T, Attributes>
 
-export type AfterCreateFn<T extends Model> = (model: T) => Promise<void>
+export type AfterCreateFn<T extends object> = (model: T) => Promise<void>
+export type BeforeCreateFn<T extends object> = (model: T) => void | Promise<void>
 
-/**
- * Runs with the fully-populated instance after FKs are set but before save.
- * Use to compute attributes that depend on resolved FK values. Not called during `build()`.
- */
-export type BeforeCreateFn<T extends Model> = (model: T) => void | Promise<void>
+export type AssociationFactory<A extends object, Attributes extends object, ModelClass> = {
+  modelClass: ModelClass
+  build(params?: CoreFactoryParams<A, Attributes>): A
+  create(params?: CoreFactoryParams<A, Attributes>): Promise<A>
+}
 
-export type AssociateFunction<T extends Model> = <A extends Model>(
+export type AssociateFunction<T extends object, Attributes extends object, ModelClass> = <
+  A extends object,
+  AAttributes extends object,
+  AModelClass,
+>(
   name: AssociationName<T>,
-  factory: FactoryInterface<A>,
-  overrides?: FactoryParams<A> | ((resolvedParams: FactoryParams<T>) => FactoryParams<A>)
+  factory: AssociationFactory<A, AAttributes, AModelClass>,
+  overrides?:
+    | CoreFactoryParams<A, AAttributes>
+    | ((resolvedParams: CoreFactoryParams<T, Attributes>) => CoreFactoryParams<A, AAttributes>)
 ) => A
 
-// ============================================================================
-// UTILITY TYPES
-// ============================================================================
-
-/**
- * Marks keys in P that aren't in Target as `never`, surfacing excess-property
- * errors in generic callback return types where TS would normally skip them.
- */
 export type RejectExcessKeys<P, Target> = P & Record<Exclude<keyof P, keyof Target>, never>
-
-/**
- * Value shape for Sequelize primary/foreign keys — number (int PKs) or string
- * (uuid/natural PKs). Narrower than `unknown`, so callers don't need casts.
- */
 export type ForeignKeyValue = string | number
-
-/**
- * Build-mode placeholder: when a foreign key is provided but the association
- * is not loaded, we attach an object with just the id field.
- */
-export type MinimalAssociation = {
-  id: ForeignKeyValue
-}
+export type MinimalAssociation = { id: ForeignKeyValue }

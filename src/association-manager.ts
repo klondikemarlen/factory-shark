@@ -1,34 +1,26 @@
 // Originally from WRAP's FactoryShark; extracted and modified for standalone distribution.
 // Apache-2.0 terms and original attribution are preserved.
+
 import { isNil, isUndefined } from "lodash"
-import type { Association, Model, ModelStatic } from "@sequelize/core"
 
 import { AssociationNotFoundError } from "./errors"
-import { isModel, PRIMARY_KEY } from "./utils"
 import type { AssociationRegistration } from "./factory-context"
+import type { FactoryAdapter } from "./orm-adapter"
+import { PRIMARY_KEY } from "./utils"
 import type {
   AssociationName,
-  FactoryParams,
+  CoreFactoryParams,
   ForeignKeyName,
   ForeignKeyValue,
   MinimalAssociation,
 } from "./types"
 
-/**
- * Creates and attaches associations for a single factory evaluation.
- *
- * In create mode each registration resolves in one of three ways:
- *   (a) caller supplied an FK      → backfill the instance's id
- *   (b) caller supplied a Model    → swap it in and mirror its id onto our FK
- *   (c) neither                    → invoke the factory, then mirror
- *
- * In build mode associations are attached without persistence.
- */
-export class AssociationManager<T extends Model> {
+export class AssociationManager<T extends object, Attributes extends object, ModelClass> {
   constructor(
-    private readonly modelClass: ModelStatic<T>,
-    private readonly registrations: AssociationRegistration<T>[],
-    private readonly params: FactoryParams<T>
+    private readonly modelClass: ModelClass,
+    private readonly registrations: AssociationRegistration<T, Attributes>[],
+    private readonly params: CoreFactoryParams<T, Attributes>,
+    private readonly adapter: FactoryAdapter<T, Attributes, ModelClass>
   ) {}
 
   attachAssociations(model: T): void {
@@ -65,7 +57,9 @@ export class AssociationManager<T extends Model> {
     }
   }
 
-  private async createAssociation(registration: AssociationRegistration<T>): Promise<void> {
+  private async createAssociation(
+    registration: AssociationRegistration<T, Attributes>
+  ): Promise<void> {
     this.validateAssociationExists(registration.name)
 
     const foreignKeyValue = this.readForeignKey(registration.foreignKeyName)
@@ -83,20 +77,18 @@ export class AssociationManager<T extends Model> {
     await this.createAndMirrorInstance(registration)
   }
 
-  /** Case (a): caller passed an FK — stamp it onto the build-time instance. */
   private backfillInstanceId(
-    registration: AssociationRegistration<T>,
+    registration: AssociationRegistration<T, Attributes>,
     foreignKeyValue: ForeignKeyValue
   ): void {
-    registration.instance.set(PRIMARY_KEY, foreignKeyValue)
+    this.adapter.set(registration.instance, PRIMARY_KEY, foreignKeyValue)
   }
 
-  /** Case (b): caller passed an instance — use it and mirror its id onto our FK. */
   private swapInProvidedInstance(
-    registration: AssociationRegistration<T>,
+    registration: AssociationRegistration<T, Attributes>,
     providedInstance: unknown
   ): void {
-    if (!isModel(providedInstance)) {
+    if (!this.adapter.isModel(providedInstance)) {
       throw new Error(
         `Invalid association instance provided for "${registration.name}". Expected Model instance.`
       )
@@ -106,45 +98,42 @@ export class AssociationManager<T extends Model> {
     this.writeForeignKey(registration.foreignKeyName, this.readPrimaryKey(providedInstance))
   }
 
-  /** Case (c): create the associated row and reconcile with the build-time instance. */
-  private async createAndMirrorInstance(registration: AssociationRegistration<T>): Promise<void> {
+  private async createAndMirrorInstance(
+    registration: AssociationRegistration<T, Attributes>
+  ): Promise<void> {
     const persistedInstance = await registration.create(this.params)
     this.updateRegistrationInstance(registration, persistedInstance)
     this.writeForeignKey(registration.foreignKeyName, this.readPrimaryKey(persistedInstance))
   }
 
-  /**
-   * Reconciles the build-time instance with the saved record. Other registrations
-   * (via lazy override closures) may have captured the build-time instance before
-   * save; we copy persisted values back onto it and flip isNewRecord so those
-   * references observe the saved state, while also advancing our own reference
-   * to the newly-returned instance for subsequent operations.
-   */
   private updateRegistrationInstance(
-    registration: AssociationRegistration<T>,
-    persistedInstance: Model
+    registration: AssociationRegistration<T, Attributes>,
+    persistedInstance: object
   ): void {
-    registration.instance.set(persistedInstance.get() as Record<string, unknown>)
-    registration.instance.isNewRecord = false
+    this.adapter.setValues(
+      registration.instance,
+      this.adapter.get(persistedInstance) as Record<string, unknown>
+    )
+    this.adapter.markSaved(registration.instance)
     registration.instance = persistedInstance
   }
 
   private async resolveAssociationModel(
-    registration: AssociationRegistration<T>,
+    registration: AssociationRegistration<T, Attributes>,
     foreignKeyValue: ForeignKeyValue | undefined | null
-  ): Promise<Model | null> {
+  ): Promise<object | null> {
     if (isNil(foreignKeyValue)) return registration.instance
 
-    const associationMeta: Association | undefined = this.modelClass.associations[registration.name]
-    if (!associationMeta) return null
+    const association = this.adapter.association(this.modelClass, registration.name)
+    if (!association) return null
 
-    return associationMeta.target.findByPk(foreignKeyValue)
+    return this.adapter.findByPk(association, foreignKeyValue)
   }
 
   private backfillForeignKeyIfNeeded(
     model: T,
-    registration: AssociationRegistration<T>,
-    associatedModel: Model | null,
+    registration: AssociationRegistration<T, Attributes>,
+    associatedModel: object | null,
     foreignKeyValue: ForeignKeyValue | undefined | null
   ): void {
     if (!isNil(foreignKeyValue) || !associatedModel) return
@@ -153,50 +142,38 @@ export class AssociationManager<T extends Model> {
     Object.assign(model, { [registration.foreignKeyName]: associationPrimaryKey })
   }
 
-  private validateAssociationExists(associationName: string): void {
-    const associationMeta: Association | undefined = this.modelClass.associations[associationName]
+  private validateAssociationExists(name: AssociationName<T>): void {
+    if (this.adapter.association(this.modelClass, name)) return
 
-    if (!associationMeta) {
-      throw new AssociationNotFoundError(
-        this.modelClass.name,
-        associationName,
-        Object.keys(this.modelClass.associations)
-      )
-    }
+    throw new AssociationNotFoundError(
+      this.adapter.modelName(this.modelClass),
+      name,
+      this.adapter.associationNames(this.modelClass)
+    )
   }
 
-  /**
-   * Reads the FK attribute from params. Returns the PK shape Sequelize accepts
-   * (number | string) or undefined/null when the caller didn't supply it.
-   *
-   * Narrowing to ForeignKeyValue is safe: all Sequelize PKs are int or string
-   * at the DB layer, regardless of how a given model types its id column.
-   */
-  private readForeignKey<K extends ForeignKeyName<T>>(
+  private readForeignKey<K extends ForeignKeyName<T, Attributes>>(
     foreignKeyName: K
   ): ForeignKeyValue | undefined | null {
-    const value: FactoryParams<T>[K] = this.params[foreignKeyName]
+    const value = this.params[foreignKeyName]
     return value as ForeignKeyValue | undefined | null
   }
 
-  private readProvidedInstance<K extends AssociationName<T>>(name: K): FactoryParams<T>[K] {
+  private readProvidedInstance<K extends AssociationName<T>>(
+    name: K
+  ): CoreFactoryParams<T, Attributes>[K] {
     return this.params[name]
   }
 
-  private writeForeignKey<K extends ForeignKeyName<T>>(
+  private writeForeignKey<K extends ForeignKeyName<T, Attributes>>(
     foreignKeyName: K,
     value: ForeignKeyValue
   ): void {
-    this.params[foreignKeyName] = value as FactoryParams<T>[K]
+    this.params[foreignKeyName] = value as CoreFactoryParams<T, Attributes>[K]
   }
 
-  /**
-   * Extracts a primary key from a persisted model. Sequelize types `.get()` as
-   * `unknown`, but a saved model always has a PK — assert once at this boundary
-   * so callers get a typed value.
-   */
-  private readPrimaryKey(model: Model): ForeignKeyValue {
-    const primaryKey = model.get(PRIMARY_KEY)
+  private readPrimaryKey(model: object): ForeignKeyValue {
+    const primaryKey = this.adapter.get(model, PRIMARY_KEY)
 
     if (isUndefined(primaryKey) || primaryKey === null) {
       throw new Error(`Expected primary key on ${model.constructor.name}, got ${primaryKey}`)

@@ -5,9 +5,15 @@ import { test } from "node:test"
 import { isUndefined } from "lodash"
 
 import { createFixture } from "./support.js"
-import type { Fixture, ProjectRecord } from "./support.js"
+import type { Fixture, OrganizationRecord, ProjectRecord } from "./support.js"
 
-import { AssociationNotFoundError, FactoryShark } from "../src/index.js"
+import {
+  AssociationManager,
+  AssociationNotFoundError,
+  AttributeBuilder,
+  FactoryContext,
+  FactoryShark,
+} from "../src/index.js"
 
 type FixtureScenario = (fixture: Fixture) => Promise<void>
 
@@ -551,10 +557,47 @@ test("when an unknown association is registered, build raises AssociationNotFoun
 })
 
 // These compile-only scenarios never run; tsc fails if invalid inputs become accepted.
-export function checkFactoryTypes({ Project, User }: Fixture) {
+export function checkFactoryTypes({ Project, User, organizationFactory }: Fixture) {
   const projectFactory = FactoryShark.define(Project, () => ({
     title: "Typed project",
   }))
+  const directModelRows: Promise<ProjectRecord[]> = projectFactory.modelClass.findAll()
+  const configuredModelRows: Promise<ProjectRecord[]> = projectFactory
+    .params({
+      title: "Configured project",
+    })
+    .modelClass.findAll()
+  void directModelRows
+  void configuredModelRows
+
+  const factoryContext = new FactoryContext(Project)
+  factoryContext.associate<OrganizationRecord>("organization", organizationFactory)
+  const registration = factoryContext.registrations[0]
+  registration.instance.get("id")
+  registration.instance.isNewRecord
+  void registration.create({}).then((model) => model.get("id"))
+
+  FactoryShark.define(Project, ({ associate }) => {
+    const organization = associate<OrganizationRecord>("organization", organizationFactory)
+
+    return {
+      title: organization.name,
+    }
+  })
+
+  const associationManager = new AssociationManager(Project, [], {})
+  const attributeBuilder = new AttributeBuilder<ProjectRecord>({
+    generator: ({ sequence }) => ({
+      title: `Builder project ${sequence}`,
+    }),
+    sequence: 1,
+    transientParams: {},
+    associate: factoryContext.associate,
+    params: {},
+  })
+  void factoryContext
+  void associationManager
+  void attributeBuilder
 
   projectFactory.create({
     title: "Allowed",

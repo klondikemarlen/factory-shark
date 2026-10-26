@@ -1,30 +1,20 @@
 // Originally from WRAP's FactoryShark; extracted and modified for standalone distribution.
 // Apache-2.0 terms and original attribution are preserved.
-import { AssociationManager } from "./association-manager"
-import { AttributeBuilder } from "./attribute-builder"
-import { AssociationNotFoundError, ForeignKeyNotFoundError } from "./errors"
-import { FactoryContext } from "./factory-context"
-import { FactoryShark } from "./factory-shark"
-import { isModel, PRIMARY_KEY } from "./utils"
-import { CreateStrategy } from "./strategy/create-strategy"
+
+import { FactoryShark } from "./sequelize-v7"
 
 export {
-  FactoryContext,
-  FactoryShark,
   AssociationManager,
+  AssociationNotFoundError,
   AttributeBuilder,
   CreateStrategy,
-  AssociationNotFoundError,
+  FactoryContext,
+  FactoryShark,
   ForeignKeyNotFoundError,
   isModel,
   PRIMARY_KEY,
-}
+} from "./sequelize-v7"
 
-export {
-  type BeforeCreateFn,
-  type FactoryInterface,
-  type FactoryParams,
-  type GeneratorFn,
-} from "./types"
+export type { BeforeCreateFn, FactoryInterface, FactoryParams, GeneratorFn } from "./sequelize-v7"
 
 export default FactoryShark

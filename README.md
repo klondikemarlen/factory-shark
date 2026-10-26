@@ -14,9 +14,20 @@ npm install --save-dev factory-shark@1.0.0
 
 If you use it outside tests, install it as a runtime dependency instead. `create()` writes real database records, so use isolated test persistence and never point test factories at production data.
 
-FactoryShark supports Node.js 22 and 24 and requires **exactly `@sequelize/core@7.0.0-alpha.48`** with a matching Sequelize dialect. Sequelize 6 and other Sequelize alpha versions are not supported. The package provides CommonJS code and TypeScript declarations; configure TypeScript with Node16 module resolution and `esModuleInterop`, or use CommonJS `require("factory-shark").FactoryShark`. There is no native ESM build.
+FactoryShark supports Node.js 22 and 24. It provides CommonJS code and TypeScript declarations; configure TypeScript with Node16 module resolution and `esModuleInterop`, or use CommonJS `require()`. Your application supplies Sequelize and a matching dialect.
 
 The supported model convention uses `id` as the primary key. Custom primary-key names and associations other than `belongsTo` are not supported.
+
+### Choose Your Sequelize Integration
+
+| Sequelize API          | Verified release | Import                                          |
+| ---------------------- | ---------------- | ----------------------------------------------- |
+| v6 (`sequelize`)       | `6.37.8`         | `factory-shark/sequelize-v6`                    |
+| v7 (`@sequelize/core`) | `7.0.0-alpha.48` | `factory-shark` or `factory-shark/sequelize-v7` |
+
+Existing v7 projects can keep their root imports. For v6, import `FactoryShark` and its factory types from `factory-shark/sequelize-v6`; the factory API stays the same. The examples below use the v7 root entry point.
+
+The v6 integration is available in the source build and is not included in npm version 1.0.0. See [Sequelize compatibility](docs/architecture/sequelize-compatibility.md) for supported ranges, local artifact use, and how new versions are qualified.
 
 ## Define Factories Alongside Your Tests
 
