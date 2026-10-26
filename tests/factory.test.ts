@@ -1,4 +1,4 @@
-// Adapted from WRAP FactoryShark acceptance tests at 24ce6097a1f2c4d87a09dddcec88e33b8859782b under Apache-2.0; rewritten as isolated standalone scenarios.
+// Adapted from WRAP FactoryShark acceptance tests under Apache-2.0; rewritten as isolated standalone scenarios.
 import assert from "node:assert/strict"
 import { test } from "node:test"
 
