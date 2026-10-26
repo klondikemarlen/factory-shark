@@ -19,6 +19,7 @@ export class FactoryBuilder<
   ModelClass,
   TransientParams = Record<string, never>,
 > {
+  // Each configured clone owns a fresh counter; evaluating it never advances its source.
   private sequenceCounter = 0
 
   constructor(

@@ -36,6 +36,7 @@ export class AttributeBuilder<
   private readonly params: CoreFactoryParams<T, Attributes>
   private readonly afterCreateHooks: AfterCreateFn<T>[] = []
   private readonly beforeCreateHooks: BeforeCreateFn<T>[] = []
+  // Attribute merging and hook discovery share one evaluation, so generator side effects run once.
   private cachedAttributes?: CoreGeneratorReturn<T, Attributes>
 
   constructor(options: AttributeBuilderOptions<T, Attributes, ModelClass, TransientParams>) {
