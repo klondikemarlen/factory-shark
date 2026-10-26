@@ -1,42 +1,44 @@
 // Originally from WRAP's FactoryShark; extracted and modified for standalone distribution.
 // Apache-2.0 terms and original attribution are preserved.
-import type { CreationAttributes, Model } from "@sequelize/core"
 
 import type {
   AfterCreateFn,
   AssociateFunction,
   BeforeCreateFn,
-  FactoryParams,
+  CoreFactoryParams,
+  CoreGeneratorReturn,
   GeneratorFn,
-  GeneratorReturn,
 } from "./types"
 
-export type AttributeBuilderOptions<T extends Model, TransientParams> = {
-  generator: GeneratorFn<T, TransientParams>
+export type AttributeBuilderOptions<
+  T extends object,
+  Attributes extends object,
+  ModelClass,
+  TransientParams,
+> = {
+  generator: GeneratorFn<T, Attributes, ModelClass, TransientParams>
   sequence: number
   transientParams: TransientParams
-  associate: AssociateFunction<T>
-  params: FactoryParams<T>
+  associate: AssociateFunction<T, Attributes, ModelClass>
+  params: CoreFactoryParams<T, Attributes>
 }
 
-/**
- * Generates factory attributes by invoking the generator exactly once and
- * merging its output with caller-provided params. Params may mutate during
- * association creation (FK backfill), so merge is deferred to read time.
- */
-export class AttributeBuilder<T extends Model, TransientParams> {
-  private readonly generator: GeneratorFn<T, TransientParams>
+export class AttributeBuilder<
+  T extends object,
+  Attributes extends object,
+  ModelClass,
+  TransientParams,
+> {
+  private readonly generator: GeneratorFn<T, Attributes, ModelClass, TransientParams>
   private readonly sequence: number
   private readonly transientParams: TransientParams
-  private readonly associateFn: AssociateFunction<T>
-  private readonly params: FactoryParams<T>
+  private readonly associateFn: AssociateFunction<T, Attributes, ModelClass>
+  private readonly params: CoreFactoryParams<T, Attributes>
   private readonly afterCreateHooks: AfterCreateFn<T>[] = []
   private readonly beforeCreateHooks: BeforeCreateFn<T>[] = []
+  private cachedAttributes?: CoreGeneratorReturn<T, Attributes>
 
-  // Cache generator output so the same evaluation and hooks are produced only once.
-  private cachedAttributes?: GeneratorReturn<T>
-
-  constructor(options: AttributeBuilderOptions<T, TransientParams>) {
+  constructor(options: AttributeBuilderOptions<T, Attributes, ModelClass, TransientParams>) {
     this.generator = options.generator
     this.sequence = options.sequence
     this.transientParams = options.transientParams
@@ -48,12 +50,12 @@ export class AttributeBuilder<T extends Model, TransientParams> {
     this.generateAttributes()
   }
 
-  mergeAttributes(): CreationAttributes<T> {
+  mergeAttributes(): Attributes {
     const generatedAttributes = this.generateAttributes()
     return {
       ...generatedAttributes,
       ...this.params,
-    }
+    } as Attributes
   }
 
   getAfterCreateHooks(): AfterCreateFn<T>[] {
@@ -64,7 +66,7 @@ export class AttributeBuilder<T extends Model, TransientParams> {
     return this.beforeCreateHooks
   }
 
-  private generateAttributes(): GeneratorReturn<T> {
+  private generateAttributes(): CoreGeneratorReturn<T, Attributes> {
     if (this.cachedAttributes) return this.cachedAttributes
 
     this.cachedAttributes = this.generator({

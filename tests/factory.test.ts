@@ -7,7 +7,13 @@ import { isUndefined } from "lodash"
 import { createFixture } from "./support.js"
 import type { Fixture, ProjectRecord } from "./support.js"
 
-import { AssociationNotFoundError, FactoryShark } from "../src/index.js"
+import {
+  AssociationManager,
+  AssociationNotFoundError,
+  AttributeBuilder,
+  FactoryContext,
+  FactoryShark,
+} from "../src/index.js"
 
 type FixtureScenario = (fixture: Fixture) => Promise<void>
 
@@ -555,6 +561,29 @@ export function checkFactoryTypes({ Project, User }: Fixture) {
   const projectFactory = FactoryShark.define(Project, () => ({
     title: "Typed project",
   }))
+  const directModelRows: Promise<ProjectRecord[]> = projectFactory.modelClass.findAll()
+  const configuredModelRows: Promise<ProjectRecord[]> = projectFactory
+    .params({
+      title: "Configured project",
+    })
+    .modelClass.findAll()
+  void directModelRows
+  void configuredModelRows
+
+  const factoryContext = new FactoryContext(Project)
+  const associationManager = new AssociationManager(Project, [], {})
+  const attributeBuilder = new AttributeBuilder<ProjectRecord>({
+    generator: ({ sequence }) => ({
+      title: `Builder project ${sequence}`,
+    }),
+    sequence: 1,
+    transientParams: {},
+    associate: factoryContext.associate,
+    params: {},
+  })
+  void factoryContext
+  void associationManager
+  void attributeBuilder
 
   projectFactory.create({
     title: "Allowed",

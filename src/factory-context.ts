@@ -1,48 +1,51 @@
 // Originally from WRAP's FactoryShark; extracted and modified for standalone distribution.
 // Apache-2.0 terms and original attribution are preserved.
-import type { Association, Model, ModelStatic } from "@sequelize/core"
 
 import { AssociationNotFoundError, ForeignKeyNotFoundError } from "./errors"
+import type { FactoryAdapter } from "./orm-adapter"
 import type {
   AssociateFunction,
+  AssociationFactory,
   AssociationName,
-  FactoryInterface,
-  FactoryParams,
+  CoreFactoryParams,
   ForeignKeyName,
 } from "./types"
 
-/**
- * Records an association registered during generator evaluation.
- *
- * `create` receives the parent factory's resolved params (including FK values
- * populated by earlier registrations) so lazy overrides see saved ids rather
- * than the unsaved build-time instance captured by closure.
- */
-export type AssociationRegistration<T extends Model> = {
+export type AssociationRegistration<T extends object, Attributes extends object> = {
   name: AssociationName<T>
-  foreignKeyName: ForeignKeyName<T>
-  create: (resolvedParams: FactoryParams<T>) => Promise<Model>
-  instance: Model
+  foreignKeyName: ForeignKeyName<T, Attributes>
+  create: (resolvedParams: CoreFactoryParams<T, Attributes>) => Promise<object>
+  instance: object
 }
 
-/**
- * Tracks association registrations produced by the generator's `associate()` calls.
- */
-export class FactoryContext<T extends Model = Model> {
-  readonly registrations: AssociationRegistration<T>[] = []
+export class FactoryContext<
+  T extends object,
+  Attributes extends object,
+  ModelClass,
+  TransientParams = Record<string, never>,
+> {
+  readonly registrations: AssociationRegistration<T, Attributes>[] = []
 
   constructor(
-    protected readonly modelClass: ModelStatic<T>,
-    protected readonly params: FactoryParams<T> = {}
+    protected readonly modelClass: ModelClass,
+    protected readonly params: CoreFactoryParams<T, Attributes>,
+    private readonly adapter: FactoryAdapter<T, Attributes, ModelClass>
   ) {}
 
-  associate: AssociateFunction<T> = <A extends Model>(
+  associate: AssociateFunction<T, Attributes, ModelClass> = <
+    A extends object,
+    AAttributes extends object,
+    AModelClass,
+  >(
     name: AssociationName<T>,
-    factory: FactoryInterface<A>,
-    overrides?: FactoryParams<A> | ((resolvedParams: FactoryParams<T>) => FactoryParams<A>)
+    factory: AssociationFactory<A, AAttributes, AModelClass>,
+    overrides?:
+      | CoreFactoryParams<A, AAttributes>
+      | ((resolvedParams: CoreFactoryParams<T, Attributes>) => CoreFactoryParams<A, AAttributes>)
   ): A => {
+    this.adapter.assertCompatibleModelClass(factory.modelClass)
     const foreignKeyName = this.resolveForeignKeyName(name)
-    let buildParams: FactoryParams<A> | undefined
+    let buildParams: CoreFactoryParams<A, AAttributes> | undefined
 
     if (typeof overrides === "function") {
       buildParams = overrides(this.params)
@@ -68,34 +71,27 @@ export class FactoryContext<T extends Model = Model> {
     return instance
   }
 
-  getParams(): FactoryParams<T> {
+  getParams(): CoreFactoryParams<T, Attributes> {
     return this.params
   }
 
-  /**
-   * Looks up Sequelize's association metadata and extracts the FK attribute name.
-   *
-   * Sequelize types `modelClass.associations[name]` as Association (not Association
-   * | undefined), but the runtime value can be missing when an association is
-   * mistyped — so we widen explicitly to keep the runtime guard meaningful.
-   */
-  private resolveForeignKeyName(name: AssociationName<T>): ForeignKeyName<T> {
-    const associationMeta: Association | undefined = this.modelClass.associations[name]
+  private resolveForeignKeyName(name: AssociationName<T>): ForeignKeyName<T, Attributes> {
+    const association = this.adapter.association(this.modelClass, name)
 
-    if (!associationMeta) {
+    if (!association) {
       throw new AssociationNotFoundError(
-        this.modelClass.name,
+        this.adapter.modelName(this.modelClass),
         name,
-        Object.keys(this.modelClass.associations)
+        this.adapter.associationNames(this.modelClass)
       )
     }
 
-    const foreignKey = associationMeta.foreignKey
+    const foreignKey = association.foreignKey
     if (!foreignKey) {
-      throw new ForeignKeyNotFoundError(this.modelClass.name, name)
+      throw new ForeignKeyNotFoundError(this.adapter.modelName(this.modelClass), name)
     }
 
-    return foreignKey as ForeignKeyName<T>
+    return foreignKey as ForeignKeyName<T, Attributes>
   }
 }
 
