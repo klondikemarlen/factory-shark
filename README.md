@@ -1,6 +1,6 @@
 # FactoryShark
 
-TypeScript test factories for Sequelize with declarative `belongsTo` associations. Inspired by [factory_bot](https://github.com/thoughtbot/factory_bot) and [Fishery](https://github.com/thoughtbot/fishery), but implemented independently: Fishery is neither a dependency nor a wrapper beneath this library.
+TypeScript test factories for Sequelize with declarative `belongsTo` associations. Inspired by [factory_bot](https://github.com/thoughtbot/factory_bot) and [Fishery](https://github.com/thoughtbot/fishery). The current implementation does not depend on or wrap Fishery; see [Name and History](#name-and-history) for its Fishery-based origins.
 
 ## Install and Compatibility
 
@@ -20,7 +20,7 @@ Version 1 preserves the runtime behavior and public API of 0.1.0, including fact
 
 Use your application's existing Sequelize models and shared test setup. Model registration, migrations, and database cleanup belong in that setup—not in each factory or test.
 
-These examples follow [WRAP's factory modules](https://github.com/icefoganalytics/wrap/tree/24ce6097a1f2c4d87a09dddcec88e33b8859782b/api/tests/factories): Faker-generated attributes, default-exported factories, lazy association overrides, transient parameters, and opt-in relationship helpers. Relative imports keep the standalone examples portable; WRAP uses its `@/models` and `@/factories` aliases for the same dependencies.
+These examples follow [WRAP's factory modules](https://github.com/icefoganalytics/wrap/tree/24ce6097a1f2c4d87a09dddcec88e33b8859782b/api/tests/factories): Faker-generated attributes, default-exported factories, lazy association overrides, transient parameters, and opt-in relationship helpers. Application imports use WRAP's root aliases, including `@/models` and `@/factories`, even for sibling modules and type-only imports. Configure those aliases in both your TypeScript compiler and test runner; they belong to the consuming application, not this package.
 
 The examples assume your application already has the referenced models and supporting organization, category, workflow-player, and workflow-access factories. Faker and Vitest are development dependencies of the consuming application, not FactoryShark runtime dependencies. The package smoke supplies small SQLite models and supporting factories, then compiles and runs the code below unchanged against the installed tarball.
 
@@ -30,11 +30,10 @@ Transient roles are opt-in test data. The after-create hook persists them after 
 
 ```typescript
 import { faker } from "@faker-js/faker"
-
 import FactoryShark from "factory-shark"
 
-import { Role, User } from "../models"
-import type { RoleTypes } from "../models/role"
+import { Role, User } from "@/models"
+import type { RoleTypes } from "@/models/role"
 
 type UserTransientParams = {
   roles?: RoleTypes[]
@@ -82,17 +81,16 @@ The category's lazy override receives the organization's resolved foreign key. T
 
 ```typescript
 import { faker } from "@faker-js/faker"
-
-import type { FactoryInterface, GeneratorFn } from "factory-shark"
 import FactoryShark from "factory-shark"
+import type { FactoryInterface, GeneratorFn } from "factory-shark"
 
-import { User, Workflow } from "../models"
+import { User, Workflow } from "@/models"
 
-import organizationFactory from "./organization-factory"
-import userFactory from "./user-factory"
-import workflowAccessByUserFactory from "./workflow-access-by-user-factory"
-import workflowCategoryFactory from "./workflow-category-factory"
-import workflowPlayerFactory from "./workflow-player-factory"
+import organizationFactory from "@/factories/organization-factory"
+import userFactory from "@/factories/user-factory"
+import workflowAccessByUserFactory from "@/factories/workflow-access-by-user-factory"
+import workflowCategoryFactory from "@/factories/workflow-category-factory"
+import workflowPlayerFactory from "@/factories/workflow-player-factory"
 
 class WorkflowFactory extends FactoryShark<Workflow> {
   constructor(generator: GeneratorFn<Workflow>) {
@@ -140,12 +138,12 @@ As in WRAP, these Vitest examples use global `describe`, `test`, and `expect`, i
 ### `workflow-factory.test.ts`
 
 ```typescript
-import { Workflow, WorkflowAccessByUser } from "./models"
+import { Workflow, WorkflowAccessByUser } from "@/models"
 
-import organizationFactory from "./factories/organization-factory"
-import userFactory from "./factories/user-factory"
+import organizationFactory from "@/factories/organization-factory"
+import userFactory from "@/factories/user-factory"
 
-import workflowFactory from "./factories/workflow-factory"
+import workflowFactory from "@/factories/workflow-factory"
 
 describe("factories/workflow-factory.ts", () => {
   describe("WorkflowFactory", () => {
@@ -223,10 +221,10 @@ describe("factories/workflow-factory.ts", () => {
 ### `user-factory.test.ts`
 
 ```typescript
-import { Role } from "./models"
-import { RoleTypes } from "./models/role"
+import { Role } from "@/models"
+import { RoleTypes } from "@/models/role"
 
-import userFactory from "./factories/user-factory"
+import userFactory from "@/factories/user-factory"
 
 describe("factories/user-factory.ts", () => {
   describe("userFactory", () => {
@@ -275,6 +273,12 @@ Import from `factory-shark` only; internal deep imports are not exported. The de
 ## Contribute and Release
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, isolated tests, and release commands. `npm run check` type-checks the library/tests, runs real SQLite scenarios, then packs and installs the artifact into a temporary external consumer. It compiles every TypeScript example above and executes the documented Vitest tests against isolated SQLite models. CI runs this command on Node 22 and 24.
+
+## Name and History
+
+The project began inside WRAP as **fishery-bot**, a companion library that saved Sequelize association trees from Fishery's `onCreate` hook. Its [original README](https://github.com/icefoganalytics/wrap/blob/8f1285b58f55985325d9954eab1dc98fb08ced69/api/src/lib/fishery-bot/README.md) explains the name: **“Fishery + Factory Bot = Fishery Bot.”** [WRAP's workflow factory at that revision](https://github.com/icefoganalytics/wrap/blob/8f1285b58f55985325d9954eab1dc98fb08ced69/api/tests/factories/workflow-factory.ts) imports `Factory` from `fishery` and calls the persistence helper in `onCreate`.
+
+WRAP later [introduced its own `FisheryBotFactory`](https://github.com/icefoganalytics/wrap/commit/1e01afedebf9b81330bc5a9f31349c058fe8a758). The [rename to `factory-shark`](https://github.com/icefoganalytics/wrap/commit/29e96c92aff67ca033e2430abcecddcab941a061) gives the reason: **“Easier to spell and pronounce.”** The [renamed README](https://github.com/icefoganalytics/wrap/blob/29e96c92aff67ca033e2430abcecddcab941a061/api/src/lib/factory-shark/README.md) preserves the wordplay as **“Fishery + FactoryBot = FactoryShark”** and still describes it as “built on top of” Fishery. That historical description is not the dependency relationship of the current standalone package, which uses its own factory implementation.
 
 ## License and Provenance
 

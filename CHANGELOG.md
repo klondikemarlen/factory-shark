@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Use WRAP's root application imports throughout README examples and supporting factory fixtures; resolve the aliases in both TypeScript and the executable packed-consumer smoke.
+- Restore the fishery-bot naming history and rename rationale from WRAP commits; distinguish the original Fishery companion library from the current standalone implementation.
+
 ## 1.0.0
 
 - Stabilize the extracted WRAP factory API without changing runtime behavior, public exports, association precedence, or hook ordering.
