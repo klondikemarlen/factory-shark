@@ -1,4 +1,4 @@
-// Adapted from WRAP FactoryShark tests at 24ce6097a1f2c4d87a09dddcec88e33b8859782b under Apache-2.0; rewritten for standalone SQLite fixtures.
+// Adapted from WRAP FactoryShark tests under Apache-2.0; rewritten for standalone SQLite fixtures.
 import type {
   CreationOptional,
   ForeignKey,

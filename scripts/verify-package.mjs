@@ -21,20 +21,13 @@ function runCommand(command, argumentsList, workingDirectory = consumerDirectory
 
 function verifyPackageContents(artifact) {
   const packedFiles = new Set(artifact.files.map((file) => file.path))
-  const requiredFiles = [
-    "dist/index.js",
-    "dist/index.d.ts",
-    "dist/types.d.ts",
-    "LICENSE",
-    "LICENSE-APACHE",
-    "NOTICE",
-  ]
+  const requiredFiles = ["dist/index.js", "dist/index.d.ts", "dist/types.d.ts", "LICENSE", "NOTICE"]
 
   for (const requiredFile of requiredFiles) {
     assert.ok(packedFiles.has(requiredFile), `Missing packed file: ${requiredFile}`)
   }
 
-  const allowedPath = /^(dist\/|src\/|package\.json$|README\.md$|LICENSE$|LICENSE-APACHE$|NOTICE$)/
+  const allowedPath = /^(dist\/|src\/|package\.json$|README\.md$|LICENSE$|NOTICE$)/
 
   for (const packedFile of packedFiles) {
     assert.match(packedFile, allowedPath)
@@ -188,12 +181,13 @@ function verifyCommonJsConsumer() {
   console.log(consumerOutput)
 }
 
-function verifyInstalledVersion() {
+function verifyInstalledPackageMetadata() {
   const versionCheck = `
     const assert = require("node:assert/strict")
     const metadata = require("factory-shark/package.json")
 
     assert.equal(metadata.version, ${JSON.stringify(version)})
+    assert.equal(metadata.license, "Apache-2.0")
     console.log("Installed factory-shark@" + metadata.version)
   `
   const versionOutput = runCommand(process.execPath, ["-e", versionCheck])
@@ -219,7 +213,7 @@ try {
   writeConsumerExamples()
   verifyTypedConsumer()
   verifyCommonJsConsumer()
-  verifyInstalledVersion()
+  verifyInstalledPackageMetadata()
 } finally {
   rmSync(consumerDirectory, {
     recursive: true,

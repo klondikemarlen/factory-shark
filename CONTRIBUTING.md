@@ -1,5 +1,7 @@
 # Contributing
 
+Before making changes, consult the [project knowledge base](docs/README.md). Update the owning document when verified behavior, decisions, or QA knowledge changes; keep transient run reports in the issue or pull request.
+
 ## Setup and Checks
 
 Use a current Node.js 22 or 24 release and npm 11.12.1 for development checks. No Docker, WRAP checkout, application environment variables, external database, or private fixtures are needed. CI pins the same npm version because npm 10.9.9 crashes in peer-dependency resolution for the consumer's Vitest toolchain; the library's Node/Sequelize runtime contract is unchanged.
@@ -14,7 +16,7 @@ npm run check
 
 Tests belong in `tests/`; use generic local models and real disposable persistence rather than application models or mock-only ORM assertions. Cover externally observable contracts, not private implementation structure. Use `when [condition], [behavior]` test names and Arrange/Act/Assert phases. Type-safety cases use `@ts-expect-error` so unexpectedly accepted invalid input fails type checking.
 
-Changes follow an issue-linked branch and PR. Keep extraction behavior stable unless a separate accepted issue changes the contract. Include meaningful QA steps, resolve review findings, and merge only after checks pass. New source derived from WRAP must preserve its Apache attribution and identify modifications; new original infrastructure/documentation is MIT licensed.
+Changes follow an issue-linked branch and PR. Keep factory behavior stable unless a separate accepted issue changes the contract. Include meaningful QA steps, resolve review findings, and merge only after checks pass. Project contributions use Apache-2.0. Preserve attribution and identify modifications to WRAP-derived material; dependencies retain their own licenses.
 
 ## Coding Conventions
 
@@ -42,7 +44,7 @@ npm run check
 npm pack --json
 ```
 
-Record the merged commit and the resulting tarball filename, integrity, and SHA-256. Inspect the file list: only compiled code/declarations, attributed source, README, package metadata, and both licenses/NOTICE belong in the artifact. CI uses an unfiltered Node 22/24 matrix; package or source changes run the same checks, and `setup-node` keys its dependency cache from `package-lock.json`.
+Record the merged commit and the resulting tarball filename, integrity, and SHA-256. Inspect the file list: only compiled code/declarations, attributed source, README, package metadata, LICENSE, and NOTICE belong in the artifact. CI uses an unfiltered Node 22/24 matrix; package or source changes run the same checks, and `setup-node` keys its dependency cache from `package-lock.json`.
 
 For an authorized registry release:
 
@@ -51,4 +53,4 @@ For an authorized registry release:
 3. Inspect with `npm publish ./factory-shark-<version>.tgz --dry-run`, then, only with authorization, publish that exact tarball using `npm publish ./factory-shark-<version>.tgz --access public`. Retain npm's result and registry integrity/version; an upload command alone is not installed-artifact proof.
 4. Tag the intended release commit as `v<version>` after successful publication. In a fresh external consumer, install `factory-shark@<version>` from the registry, verify its installed version and registry integrity against the release artifact, compile the README example, and run it. A local pack smoke does not establish registry publication or deployment.
 
-The `MIT AND Apache-2.0` package metadata reflects the combined distribution. `LICENSE` covers new original work; `LICENSE-APACHE` and `NOTICE` cover extracted material. Do not change this to MIT-only without explicit rights-holder permission.
+The current source and future releases use Apache-2.0 for project work. Previously published releases retain the terms under which they were released; dependencies retain their own licenses.
