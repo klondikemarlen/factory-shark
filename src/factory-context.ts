@@ -18,12 +18,7 @@ export type AssociationRegistration<T extends object, Attributes extends object>
   instance: object
 }
 
-export class FactoryContext<
-  T extends object,
-  Attributes extends object,
-  ModelClass,
-  TransientParams = Record<string, never>,
-> {
+export class FactoryContext<T extends object, Attributes extends object, ModelClass> {
   readonly registrations: AssociationRegistration<T, Attributes>[] = []
 
   constructor(
@@ -32,7 +27,7 @@ export class FactoryContext<
     private readonly adapter: FactoryAdapter<T, Attributes, ModelClass>
   ) {}
 
-  associate: AssociateFunction<T, Attributes, ModelClass> = <
+  associate: AssociateFunction<T, Attributes> = <
     A extends object,
     AAttributes extends object,
     AModelClass,

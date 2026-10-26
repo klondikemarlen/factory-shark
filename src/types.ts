@@ -55,12 +55,11 @@ export type CoreGeneratorReturn<T extends object, Attributes extends object> = C
 export type GeneratorContext<
   T extends object,
   Attributes extends object,
-  ModelClass,
   TransientParams = Record<string, never>,
 > = {
   sequence: number
   params: CoreFactoryParams<T, Attributes>
-  associate: AssociateFunction<T, Attributes, ModelClass>
+  associate: AssociateFunction<T, Attributes>
   afterCreate: (fn: AfterCreateFn<T>) => void
   beforeCreate: (fn: BeforeCreateFn<T>) => void
   transient: TransientParams
@@ -69,10 +68,9 @@ export type GeneratorContext<
 export type GeneratorFn<
   T extends object,
   Attributes extends object,
-  ModelClass,
   TransientParams = Record<string, never>,
 > = (
-  context: GeneratorContext<T, Attributes, ModelClass, TransientParams>
+  context: GeneratorContext<T, Attributes, TransientParams>
 ) => CoreGeneratorReturn<T, Attributes>
 
 export type AfterCreateFn<T extends object> = (model: T) => Promise<void>
@@ -84,7 +82,7 @@ export type AssociationFactory<A extends object, Attributes extends object, Mode
   create(params?: CoreFactoryParams<A, Attributes>): Promise<A>
 }
 
-export type AssociateFunction<T extends object, Attributes extends object, ModelClass> = <
+export type AssociateFunction<T extends object, Attributes extends object> = <
   A extends object,
   AAttributes extends object,
   AModelClass,

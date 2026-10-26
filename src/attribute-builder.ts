@@ -13,33 +13,27 @@ import type {
 export type AttributeBuilderOptions<
   T extends object,
   Attributes extends object,
-  ModelClass,
   TransientParams,
 > = {
-  generator: GeneratorFn<T, Attributes, ModelClass, TransientParams>
+  generator: GeneratorFn<T, Attributes, TransientParams>
   sequence: number
   transientParams: TransientParams
-  associate: AssociateFunction<T, Attributes, ModelClass>
+  associate: AssociateFunction<T, Attributes>
   params: CoreFactoryParams<T, Attributes>
 }
 
-export class AttributeBuilder<
-  T extends object,
-  Attributes extends object,
-  ModelClass,
-  TransientParams,
-> {
-  private readonly generator: GeneratorFn<T, Attributes, ModelClass, TransientParams>
+export class AttributeBuilder<T extends object, Attributes extends object, TransientParams> {
+  private readonly generator: GeneratorFn<T, Attributes, TransientParams>
   private readonly sequence: number
   private readonly transientParams: TransientParams
-  private readonly associateFn: AssociateFunction<T, Attributes, ModelClass>
+  private readonly associateFn: AssociateFunction<T, Attributes>
   private readonly params: CoreFactoryParams<T, Attributes>
   private readonly afterCreateHooks: AfterCreateFn<T>[] = []
   private readonly beforeCreateHooks: BeforeCreateFn<T>[] = []
   // Attribute merging and hook discovery share one evaluation, so generator side effects run once.
   private cachedAttributes?: CoreGeneratorReturn<T, Attributes>
 
-  constructor(options: AttributeBuilderOptions<T, Attributes, ModelClass, TransientParams>) {
+  constructor(options: AttributeBuilderOptions<T, Attributes, TransientParams>) {
     this.generator = options.generator
     this.sequence = options.sequence
     this.transientParams = options.transientParams
