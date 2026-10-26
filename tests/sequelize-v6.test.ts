@@ -5,9 +5,14 @@ import type { ModelStatic } from "sequelize"
 
 import { createSequelizeV6Fixture } from "./sequelize-v6-support.js"
 import { ProjectRecord as SequelizeV7ProjectRecord } from "./support.js"
-import type { ProjectRecord, SequelizeV6Fixture } from "./sequelize-v6-support.js"
+import type {
+  OrganizationRecord,
+  ProjectRecord,
+  SequelizeV6Fixture,
+} from "./sequelize-v6-support.js"
 
-import { FactoryShark, type FactoryInterface, type FactoryParams } from "../src/sequelize-v6.js"
+import { FactoryContext, FactoryShark } from "../src/sequelize-v6.js"
+import type { FactoryInterface, FactoryParams } from "../src/sequelize-v6.js"
 
 type FixtureScenario = (fixture: SequelizeV6Fixture) => Promise<void>
 
@@ -271,8 +276,15 @@ export function checkSequelizeV6FactoryTypes({ Project, Organization }: Sequeliz
   const organizationFactory = FactoryShark.define(Organization, ({ sequence }) => ({
     name: `Typed organization ${sequence}`,
   }))
+  const factoryContext = new FactoryContext(Project)
+  factoryContext.associate<OrganizationRecord>("organization", organizationFactory)
+  const registration = factoryContext.registrations[0]
+  registration.instance.get("id")
+  registration.instance.isNewRecord
+  void registration.create({}).then((model) => model.get("id"))
+
   const validAssociationFactory = FactoryShark.define(Project, ({ associate }) => {
-    associate("organization", organizationFactory)
+    associate<OrganizationRecord>("organization", organizationFactory)
 
     return {
       title: "Associated typed project",

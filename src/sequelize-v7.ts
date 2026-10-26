@@ -13,6 +13,8 @@ import type { AttributeBuilderOptions as CoreAttributeBuilderOptions } from "./a
 import type { AssociationRegistration as CoreAssociationRegistration } from "./factory-context"
 import type { FactoryAdapter } from "./orm-adapter"
 import type {
+  AssociateFunction as CoreAssociateFunction,
+  AssociationName,
   CoreFactoryParams,
   FactoryInterface as CoreFactoryInterface,
   GeneratorContext as CoreGeneratorContext,
@@ -21,16 +23,22 @@ import type {
 } from "./types"
 
 export type FactoryParams<T extends Model> = CoreFactoryParams<T, InferCreationAttributes<T>>
-export type GeneratorContext<
-  T extends Model,
-  TransientParams = Record<string, never>,
-> = CoreGeneratorContext<T, InferCreationAttributes<T>, ModelStatic<T>, TransientParams>
-export type GeneratorFn<T extends Model, TransientParams = Record<string, never>> = CoreGeneratorFn<
-  T,
-  InferCreationAttributes<T>,
-  ModelStatic<T>,
-  TransientParams
->
+type PublicAssociateFunction<T extends Model> = <A extends Model>(
+  name: AssociationName<T>,
+  factory: Pick<FactoryInterface<A>, "build" | "create" | "modelClass">,
+  overrides?: FactoryParams<A> | ((params: FactoryParams<T>) => FactoryParams<A>)
+) => A
+
+export type GeneratorContext<T extends Model, TransientParams = Record<string, never>> = Omit<
+  CoreGeneratorContext<T, InferCreationAttributes<T>, ModelStatic<T>, TransientParams>,
+  "associate"
+> & {
+  associate: PublicAssociateFunction<T>
+}
+
+export type GeneratorFn<T extends Model, TransientParams = Record<string, never>> = (
+  context: GeneratorContext<T, TransientParams>
+) => FactoryParams<T>
 export type FactoryInterface<T extends Model, TransientParams = Record<string, never>> = {
   build(params?: FactoryParams<T>): T
   create(params?: FactoryParams<T>): Promise<T>
@@ -85,7 +93,12 @@ export class FactoryShark<
     this.builder = new FactoryBuilder(
       modelClass,
       adapterFor<T>(),
-      generator,
+      generator as unknown as CoreGeneratorFn<
+        T,
+        InferCreationAttributes<T>,
+        ModelStatic<T>,
+        TransientParams
+      >,
       defaultTransientParams
     )
     this.modelClass = modelClass
@@ -140,22 +153,31 @@ export class FactoryShark<
   }
 }
 
-export type AssociationRegistration<T extends Model> = CoreAssociationRegistration<
-  T,
-  InferCreationAttributes<T>
->
-export type AttributeBuilderOptions<T extends Model, TransientParams> = CoreAttributeBuilderOptions<
-  T,
-  InferCreationAttributes<T>,
-  ModelStatic<T>,
-  TransientParams
->
+export type AssociationRegistration<T extends Model> = Omit<
+  CoreAssociationRegistration<T, InferCreationAttributes<T>>,
+  "instance" | "create"
+> & {
+  instance: Model
+  create(params: FactoryParams<T>): Promise<Model>
+}
+
+export type AttributeBuilderOptions<T extends Model, TransientParams> = Omit<
+  CoreAttributeBuilderOptions<T, InferCreationAttributes<T>, ModelStatic<T>, TransientParams>,
+  "generator" | "associate"
+> & {
+  generator: GeneratorFn<T, TransientParams>
+  associate: PublicAssociateFunction<T>
+}
 
 export class FactoryContext<T extends Model = Model> extends CoreFactoryContext<
   T,
   InferCreationAttributes<T>,
   ModelStatic<T>
 > {
+  declare readonly registrations: AssociationRegistration<T>[]
+  declare associate: PublicAssociateFunction<T> &
+    CoreAssociateFunction<T, InferCreationAttributes<T>, ModelStatic<T>>
+
   constructor(modelClass: ModelStatic<T>, params: FactoryParams<T> = {}) {
     super(modelClass, params, adapterFor<T>())
   }
@@ -180,7 +202,14 @@ export class AttributeBuilder<
   TransientParams = Record<string, never>,
 > extends CoreAttributeBuilder<T, InferCreationAttributes<T>, ModelStatic<T>, TransientParams> {
   constructor(options: AttributeBuilderOptions<T, TransientParams>) {
-    super(options)
+    super(
+      options as unknown as CoreAttributeBuilderOptions<
+        T,
+        InferCreationAttributes<T>,
+        ModelStatic<T>,
+        TransientParams
+      >
+    )
   }
 }
 
