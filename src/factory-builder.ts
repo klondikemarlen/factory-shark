@@ -25,7 +25,7 @@ export class FactoryBuilder<
   constructor(
     public readonly modelClass: ModelClass,
     private readonly adapter: FactoryAdapter<T, Attributes, ModelClass>,
-    private readonly generator: GeneratorFn<T, Attributes, ModelClass, TransientParams>,
+    private readonly generator: GeneratorFn<T, Attributes, TransientParams>,
     private readonly defaultTransientParams: TransientParams,
     private readonly defaultParams: CoreFactoryParams<T, Attributes> = {},
     private readonly defaultAssociations: Record<string, object> = {},
@@ -96,12 +96,12 @@ export class FactoryBuilder<
 
   private createEvaluator(params?: CoreFactoryParams<T, Attributes>) {
     const mergedParams = { ...this.defaultAssociations, ...this.defaultParams, ...params }
-    const factoryContext = new FactoryContext<T, Attributes, ModelClass, TransientParams>(
+    const factoryContext = new FactoryContext<T, Attributes, ModelClass>(
       this.modelClass,
       mergedParams,
       this.adapter
     )
-    const attributeBuilder = new AttributeBuilder<T, Attributes, ModelClass, TransientParams>({
+    const attributeBuilder = new AttributeBuilder<T, Attributes, TransientParams>({
       generator: this.generator,
       sequence: ++this.sequenceCounter,
       transientParams: this.defaultTransientParams,

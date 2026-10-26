@@ -30,7 +30,7 @@ type PublicAssociateFunction<T extends Model> = <A extends Model>(
 ) => A
 
 export type GeneratorContext<T extends Model, TransientParams = Record<string, never>> = Omit<
-  CoreGeneratorContext<T, InferCreationAttributes<T>, ModelStatic<T>, TransientParams>,
+  CoreGeneratorContext<T, InferCreationAttributes<T>, TransientParams>,
   "associate"
 > & {
   associate: PublicAssociateFunction<T>
@@ -93,12 +93,7 @@ export class FactoryShark<
     this.builder = new FactoryBuilder(
       modelClass,
       adapterFor<T>(),
-      generator as unknown as CoreGeneratorFn<
-        T,
-        InferCreationAttributes<T>,
-        ModelStatic<T>,
-        TransientParams
-      >,
+      generator as unknown as CoreGeneratorFn<T, InferCreationAttributes<T>, TransientParams>,
       defaultTransientParams
     )
     this.modelClass = modelClass
@@ -162,7 +157,7 @@ export type AssociationRegistration<T extends Model> = Omit<
 }
 
 export type AttributeBuilderOptions<T extends Model, TransientParams> = Omit<
-  CoreAttributeBuilderOptions<T, InferCreationAttributes<T>, ModelStatic<T>, TransientParams>,
+  CoreAttributeBuilderOptions<T, InferCreationAttributes<T>, TransientParams>,
   "generator" | "associate"
 > & {
   generator: GeneratorFn<T, TransientParams>
@@ -176,7 +171,7 @@ export class FactoryContext<T extends Model = Model> extends CoreFactoryContext<
 > {
   declare readonly registrations: AssociationRegistration<T>[]
   declare associate: PublicAssociateFunction<T> &
-    CoreAssociateFunction<T, InferCreationAttributes<T>, ModelStatic<T>>
+    CoreAssociateFunction<T, InferCreationAttributes<T>>
 
   constructor(modelClass: ModelStatic<T>, params: FactoryParams<T> = {}) {
     super(modelClass, params, adapterFor<T>())
@@ -200,13 +195,12 @@ export class AssociationManager<T extends Model> extends CoreAssociationManager<
 export class AttributeBuilder<
   T extends Model,
   TransientParams = Record<string, never>,
-> extends CoreAttributeBuilder<T, InferCreationAttributes<T>, ModelStatic<T>, TransientParams> {
+> extends CoreAttributeBuilder<T, InferCreationAttributes<T>, TransientParams> {
   constructor(options: AttributeBuilderOptions<T, TransientParams>) {
     super(
       options as unknown as CoreAttributeBuilderOptions<
         T,
         InferCreationAttributes<T>,
-        ModelStatic<T>,
         TransientParams
       >
     )
