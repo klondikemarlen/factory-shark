@@ -12,6 +12,8 @@ FactoryShark creates Sequelize test models and their declared `belongsTo` depend
 
 The generator can register hooks and associations conditionally using `params` and `transient`. Transient parameters affect generation and hooks, not database columns.
 
+Sequelize-specific model access belongs to the [compatibility layer](/docs/architecture/sequelize-compatibility.md). The integration supplies the host's model and creation-attribute types and translates runtime operations; evaluation and association ordering remain shared.
+
 ## Build and Create
 
 `build()` generates attributes, calls Sequelize's model builder, and attaches unsaved association instances. It performs no persistence and runs no create hooks. A supplied foreign key produces an `id` placeholder for that association. A supplied association instance without a foreign-key override is not reused in build mode.

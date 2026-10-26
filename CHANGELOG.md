@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Isolate Sequelize-specific model types and operations behind a shared-engine compatibility layer; retain existing v7 root imports and provide explicit v6/v7 entry points.
+- Support Sequelize 6.37.8 alongside @sequelize/core 7.0.0-alpha.48, with optional peers and isolated installed-consumer runtime and declaration checks.
 - Rewrite the README around factory usage, the Sequelize association design, and the robotic-shark name; remove inaccessible private-source links.
 - Standardize the project and new original work on Apache-2.0; previously published releases retain their original terms.
 - Add a project knowledge base with durable architecture, decision, and QA guidance.
