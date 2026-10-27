@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Keep native Sequelize association lookup details behind the compatibility boundary; document how API-contract changes within a major version reuse the shared factory engine.
+
 ## 1.1.0
 
 - Remove unused internal type parameters from attribute evaluation while preserving public factory typing and runtime behavior.
