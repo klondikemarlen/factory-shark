@@ -297,4 +297,4 @@ If a robotic shark produced by FactoryBot came and gobbled up the Fishery librar
 
 ## License
 
-FactoryShark is licensed under [Apache-2.0](LICENSE). See [NOTICE](NOTICE) for attribution.
+FactoryShark is licensed under the [MIT License](LICENSE).

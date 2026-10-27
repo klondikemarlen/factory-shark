@@ -4,7 +4,7 @@ Before making changes, consult the [project knowledge base](docs/README.md). Upd
 
 ## Setup and Checks
 
-Use a current Node.js 22 or 24 release and npm 11.12.1 for development checks. No Docker, WRAP checkout, application environment variables, external database, or private fixtures are needed. CI pins the same npm version because npm 10.9.9 crashes in peer-dependency resolution for the consumer's Vitest toolchain; the library's Node/Sequelize runtime contract is unchanged.
+Use a current Node.js 22 or 24 release and npm 11.12.1 for development checks. No Docker, application checkout, environment variables, external database, or private fixtures are needed. CI pins the same npm version because npm 10.9.9 crashes in peer-dependency resolution for the consumer's Vitest toolchain; the library's Node/Sequelize runtime contract is unchanged.
 
 ```sh
 npm install --global npm@11.12.1
@@ -20,7 +20,7 @@ OMP's TypeScript runtime-entrypoint verifier uses `.marlens-verifications.json` 
 
 Tests belong in `tests/`; use generic local models and real disposable persistence rather than application models or mock-only ORM assertions. Cover externally observable contracts, not private implementation structure. Use `when [condition], [behavior]` test names and Arrange/Act/Assert phases. Type-safety cases use `@ts-expect-error` so unexpectedly accepted invalid input fails type checking.
 
-Changes follow an issue-linked branch and PR. Keep factory behavior stable unless a separate accepted issue changes the contract. Include meaningful QA steps, resolve review findings, and merge only after checks pass. Project contributions use Apache-2.0. Preserve attribution and identify modifications to WRAP-derived material; dependencies retain their own licenses.
+Changes follow an issue-linked branch and PR. Keep factory behavior stable unless a separate accepted issue changes the contract. Include meaningful QA steps, resolve review findings, and merge only after checks pass. Project contributions use MIT; dependencies retain their own licenses.
 
 ## Coding Conventions
 
@@ -49,7 +49,7 @@ npm run check
 npm pack --json
 ```
 
-Record the merged commit and the resulting tarball filename, integrity, and SHA-256. Inspect the file list: only compiled code/declarations, attributed source, README, package metadata, LICENSE, and NOTICE belong in the artifact. CI uses an unfiltered Node 22/24 matrix; package or source changes run the same checks, and `setup-node` keys its dependency cache from `package-lock.json`.
+Record the merged commit and the resulting tarball filename, integrity, and SHA-256. Inspect the file list: only compiled code/declarations, source, README, package metadata, and LICENSE belong in the artifact. CI uses an unfiltered Node 22/24 matrix; package or source changes run the same checks, and `setup-node` keys its dependency cache from `package-lock.json`.
 
 For an authorized registry release:
 
@@ -58,4 +58,4 @@ For an authorized registry release:
 3. Inspect with `npm publish ./factory-shark-<version>.tgz --dry-run`, then, only with authorization, publish that exact tarball using `npm publish ./factory-shark-<version>.tgz --access public`. Retain npm's result and registry integrity/version; an upload command alone is not installed-artifact proof.
 4. Tag the intended release commit as `v<version>` after successful publication. In a fresh external consumer, install `factory-shark@<version>` from the registry, verify its installed version and registry integrity against the release artifact, compile the README example, and run it. A local pack smoke does not establish registry publication or deployment.
 
-The current source and future releases use Apache-2.0 for project work. Previously published releases retain the terms under which they were released; dependencies retain their own licenses.
+The current source and future releases use MIT. Previously published releases retain their original terms; dependencies retain their own licenses.

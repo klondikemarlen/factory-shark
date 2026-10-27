@@ -32,6 +32,6 @@ Public declaration checks include explicit `associate<Model>(...)` calls, concre
 
 ## What These Checks Do Not Prove
 
-A local tarball install does not prove npm publication or installation of a registry release. Follow the separately authorized release procedure for registry artifact identity and fresh-consumer checks. SQLite coverage does not claim a running WRAP application or every database dialect was exercised.
+A local tarball install does not prove npm publication or installation of a registry release. Follow the separately authorized release procedure for registry artifact identity and fresh-consumer checks. SQLite coverage does not claim a running consuming application or every database dialect was exercised.
 
 `npm run check` combines formatting, type checking, library scenarios, and the consumer smoke. CI runs that gate on Node.js 22 and 24 without path filters. Keep concrete execution results in the pull request or session, not as permanent status assertions in this knowledge base.
