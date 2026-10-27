@@ -14,7 +14,7 @@ npm install --save-dev factory-shark@1.1.0
 
 If you use it outside tests, install it as a runtime dependency instead. `create()` writes real database records, so use isolated test persistence and never point test factories at production data.
 
-FactoryShark supports Node.js 22 and 24. It provides CommonJS code and TypeScript declarations; configure TypeScript with Node16 module resolution and `esModuleInterop`, or use CommonJS `require()`. Your application supplies Sequelize and a matching dialect.
+FactoryShark supports Node.js 22 and 24. The Unreleased source build provides native ESM and CommonJS bundles with format-specific TypeScript declarations. Use TypeScript's Node16 or NodeNext resolution; both default and named `FactoryShark` imports are supported, as is `require("factory-shark").FactoryShark`. Your application supplies Sequelize and a matching dialect. Published `1.1.0` remains CommonJS-only until a new release is authorized.
 
 The supported model convention uses `id` as the primary key. Custom primary-key names and associations other than `belongsTo` are not supported.
 
