@@ -1,0 +1,13 @@
+{
+  "typescriptRuntimeEntrypoints": {
+    "tsconfig": "tsconfig.json",
+    "timeoutMs": 30000,
+    "commands": [
+      {
+        "name": "Factory scenarios through tsx",
+        "command": ["./bin/check-typescript", "runtime"]
+      }
+    ],
+    "fullTypecheck": ["./bin/check-typescript", "types"]
+  }
+}
