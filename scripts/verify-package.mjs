@@ -27,7 +27,6 @@ function verifyPackageContents(artifact) {
     "dist/types/index.d.mts",
     "dist/types/index.d.cts",
     "LICENSE",
-    "NOTICE",
   ]
   for (const requiredFile of requiredFiles) {
     assert.ok(packedFiles.has(requiredFile), `Missing packed file: ${requiredFile}`)
@@ -37,7 +36,7 @@ function verifyPackageContents(artifact) {
     assert.doesNotMatch(packedFile, /^dist\/sequelize-v[67]\./)
   }
 
-  const allowedPath = /^(dist\/|src\/|package\.json$|README\.md$|LICENSE$|NOTICE$)/
+  const allowedPath = /^(dist\/|src\/|package\.json$|README\.md$|LICENSE$)/
 
   for (const packedFile of packedFiles) {
     assert.match(packedFile, allowedPath)
@@ -82,7 +81,7 @@ function installConsumerDependencies(archivePath) {
       "@faker-js/faker": "8.4.1",
       vitest: "4.1.5",
       "tsc-alias": "1.9.9",
-      // Match WRAP's resolved Vite peer before npm builds its dependency graph.
+      // Pin the consumer's Vite peer before npm builds its dependency graph.
       vite: "7.3.1",
     },
   }
@@ -426,7 +425,7 @@ function verifyInstalledPackageMetadata() {
     const metadata = require("factory-shark/package.json")
 
     assert.equal(metadata.version, ${JSON.stringify(version)})
-    assert.equal(metadata.license, "Apache-2.0")
+    assert.equal(metadata.license, "MIT")
     console.log("Installed factory-shark@" + metadata.version)
   `
   const versionOutput = runCommand(process.execPath, ["-e", versionCheck])

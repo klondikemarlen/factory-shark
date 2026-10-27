@@ -1,4 +1,3 @@
-// Adapted from WRAP FactoryShark tests under Apache-2.0; rewritten for standalone SQLite fixtures.
 import type {
   CreationOptional,
   ForeignKey,

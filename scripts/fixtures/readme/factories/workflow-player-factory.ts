@@ -1,5 +1,3 @@
-// Adapted from WRAP factory examples.
-// Original factory code is Apache-2.0; see LICENSE in the repository.
 import FactoryShark from "factory-shark"
 
 import { WorkflowPlayer } from "@/models"

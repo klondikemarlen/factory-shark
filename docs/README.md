@@ -17,4 +17,4 @@ Keep run logs, temporary diagnoses, check results, and release progress in the i
 
 ## Publication Boundary
 
-Everything here is public repository documentation. Use WRAP's general name for its origin; do not include private repository links, source revisions, internal application details, credentials, or workstation paths. There is no separate documentation-site publishing process. Knowledge-base changes are reviewed with the same issue-linked pull requests as code changes.
+Everything here is public repository documentation. Keep origin references in historical design context, without private repository links, source revisions, internal application details, credentials, or workstation paths. There is no separate documentation-site publishing process. Knowledge-base changes are reviewed with the same issue-linked pull requests as code changes.
