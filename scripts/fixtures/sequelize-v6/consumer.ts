@@ -10,8 +10,8 @@ import type {
 } from "sequelize"
 import { DataTypes, Model, Sequelize } from "sequelize"
 
-import { FactoryContext, FactoryShark } from "factory-shark/sequelize-v6"
-import type { FactoryInterface, FactoryParams } from "factory-shark/sequelize-v6"
+import { FactoryContext, FactoryShark } from "factory-shark"
+import type { FactoryInterface, FactoryParams } from "factory-shark"
 
 class OrganizationRecord extends Model<
   InferAttributes<OrganizationRecord>,

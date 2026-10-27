@@ -3,16 +3,17 @@ import { test } from "node:test"
 
 import type { ModelStatic } from "sequelize"
 
+import { createFixture } from "./support.js"
+import type { Fixture as SequelizeV7Fixture } from "./support.js"
 import { createSequelizeV6Fixture } from "./sequelize-v6-support.js"
-import { ProjectRecord as SequelizeV7ProjectRecord } from "./support.js"
 import type {
   OrganizationRecord,
   ProjectRecord,
   SequelizeV6Fixture,
 } from "./sequelize-v6-support.js"
 
-import { FactoryContext, FactoryShark } from "../src/sequelize-v6.js"
-import type { FactoryInterface, FactoryParams } from "../src/sequelize-v6.js"
+import { FactoryContext, FactoryShark } from "../src/index.js"
+import type { FactoryInterface, FactoryParams } from "../src/index.js"
 
 type FixtureScenario = (fixture: SequelizeV6Fixture) => Promise<void>
 
@@ -29,6 +30,26 @@ async function withFixture(runScenario: FixtureScenario): Promise<void> {
   }
 }
 
+async function withMixedFixtures(
+  runScenario: (sequelizeV6: SequelizeV6Fixture, sequelizeV7: SequelizeV7Fixture) => Promise<void>
+): Promise<void> {
+  const sequelizeV6 = createSequelizeV6Fixture()
+  const sequelizeV7 = createFixture()
+
+  try {
+    await sequelizeV6.sequelize.sync({
+      force: true,
+    })
+    await sequelizeV7.sequelize.sync({
+      force: true,
+    })
+    await runScenario(sequelizeV6, sequelizeV7)
+  } finally {
+    await sequelizeV6.sequelize.close()
+    await sequelizeV7.sequelize.close()
+  }
+}
+
 test("when build is called, it returns an unsaved Sequelize 6 model", async () => {
   // Arrange
   await withFixture(async ({ projectFactory }) => {
@@ -40,22 +61,25 @@ test("when build is called, it returns an unsaved Sequelize 6 model", async () =
   })
 })
 
-test("when a Sequelize 7 model class is passed to the v6 entry point, define rejects it", () => {
+test("when both Sequelize installations are loaded, the root API selects each supplied model's ORM", async () => {
   // Arrange
-  const v7ModelClass = SequelizeV7ProjectRecord as unknown as ModelStatic<ProjectRecord>
+  await withMixedFixtures(async (sequelizeV6, sequelizeV7) => {
+    // Act
+    const v6Project = FactoryShark.define(sequelizeV6.Project, () => ({
+      title: "Root API v6 project",
+      nullableNote: null,
+      metadata: {
+        source: "root API v6",
+      },
+    })).build()
+    const v7Project = FactoryShark.define(sequelizeV7.Project, () => ({
+      title: "Root API v7 project",
+    })).build()
 
-  // Act / Assert
-  assert.throws(
-    () =>
-      FactoryShark.define(v7ModelClass, () => ({
-        title: "Wrong version",
-        nullableNote: null,
-        metadata: {
-          source: "wrong version",
-        },
-      })),
-    /This factory requires a Sequelize v6 Model class\./
-  )
+    // Assert
+    assert.equal(v6Project instanceof sequelizeV6.Project, true)
+    assert.equal(v7Project instanceof sequelizeV7.Project, true)
+  })
 })
 
 test("when build is called, it does not persist the parent record", async () => {

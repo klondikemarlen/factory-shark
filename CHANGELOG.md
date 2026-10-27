@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Breaking:** use one model-driven `factory-shark` API for Sequelize 6 and 7; remove the `factory-shark/sequelize-v6` and `factory-shark/sequelize-v7` subpaths. Replace versioned factory imports with the package root.
+- Group Sequelize runtime and type integration code under `src/compatibility/sequelize/`, without duplicating the factory engine or requiring the unused ORM package.
 - Keep native Sequelize association lookup details behind the compatibility boundary; document how API-contract changes within a major version reuse the shared factory engine.
 
 ## 1.1.0

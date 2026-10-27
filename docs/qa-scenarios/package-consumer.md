@@ -4,7 +4,7 @@ FactoryShark needs two kinds of evidence: isolated scenarios for factory behavio
 
 ## Library Behavior
 
-`npm test` runs factory scenarios against Sequelize 6.37.8 and @sequelize/core 7.0.0-alpha.48 with real in-memory SQLite models. Scenarios distinguish returned model state from persisted records and cover unsaved builds, association creation and reuse, override precedence, sequences, conditional registration, and hook timing and failure behavior. Type-safety cases are checked by `npm run typecheck`.
+`npm test` runs factory scenarios against Sequelize 6.37.8 and @sequelize/core 7.0.0-alpha.48 with real in-memory SQLite models. Both families use the root factory API, including a process containing both ORM packages. Scenarios distinguish returned model state from persisted records and cover unsaved builds, association creation and reuse, override precedence, sequences, conditional registration, and hook timing and failure behavior. Type-safety cases are checked by `npm run typecheck`.
 
 The [v7 SQLite fixture](/tests/support.ts) creates fresh model subclasses for each scenario. Sequelize 7 binds an initialized model class to one database instance; closing that database does not make the class reusable for another initialization. Preserve isolated model classes and databases when adding scenarios for either integration.
 
@@ -22,7 +22,9 @@ The final CommonJS smoke omits consumer development dependencies and builds a mo
 
 The v6 smoke installs the artifact with `sequelize@6.37.8`, SQLite, and TypeScript, but without `@sequelize/core` or the v7 dialect package. It checks that the v7 package is absent, compiles the public entry point with `skipLibCheck: false`, and executes real nested association and hook behavior. Successful v6 runtime behavior alone is not sufficient: a leaked v7 declaration import would still break a v6-only application's build.
 
-The existing v7 consumer continues to exercise root imports and documented factory subclasses. Keep both integration consumers in the same release gate. The [compatibility guide](/docs/architecture/sequelize-compatibility.md) owns version selection and the process for adding a newly qualified release.
+The v7 consumer also compiles the root declarations and exercises documented factory subclasses without `sequelize` installed, including after development dependencies are removed. Keep both isolated consumers in the same release gate: runtime import isolation and declaration isolation are separate requirements. The [compatibility guide](/docs/architecture/sequelize-compatibility.md) owns model-driven selection and the process for adding a newly qualified release.
+
+The focused v7 declaration check retains ES2020 output and uses ES2022 library types because Sequelize declares native `Error.cause`/`ErrorOptions`. Supported Node.js 22/24 runtimes provide that API. This check uses `skipLibCheck: false` independently of the README's Vitest toolchain.
 
 Public declaration checks include explicit `associate<Model>(...)` calls, concrete `modelClass` static methods, and native model members on context registrations and their created results. Keep these source-compatible usages when changing the integration types; inferred generator calls alone do not cover the public TypeScript API.
 

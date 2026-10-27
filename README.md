@@ -18,14 +18,16 @@ FactoryShark supports Node.js 22 and 24. It provides CommonJS code and TypeScrip
 
 The supported model convention uses `id` as the primary key. Custom primary-key names and associations other than `belongsTo` are not supported.
 
-### Choose Your Sequelize Integration
+### One Import for Supported Sequelize Models
 
-| Sequelize API          | Verified release | Import                                          |
-| ---------------------- | ---------------- | ----------------------------------------------- |
-| v6 (`sequelize`)       | `6.37.8`         | `factory-shark/sequelize-v6`                    |
-| v7 (`@sequelize/core`) | `7.0.0-alpha.48` | `factory-shark` or `factory-shark/sequelize-v7` |
+| Sequelize API          | Verified release |
+| ---------------------- | ---------------- |
+| v6 (`sequelize`)       | `6.37.8`         |
+| v7 (`@sequelize/core`) | `7.0.0-alpha.48` |
 
-Existing v7 projects can keep their root imports. For v6, import `FactoryShark` and its factory types from `factory-shark/sequelize-v6`; the factory API stays the same. The examples below use the v7 root entry point.
+Import `FactoryShark` and its factory types from `factory-shark` for either ORM. The supplied model determines the integration; your factories do not choose a versioned import. Your application supplies its ORM and matching dialect, and does not need the other ORM package installed.
+
+This unified API is currently **Unreleased** and available from a local source build. Published `1.1.0` retains its earlier entry points: root imports for v7 and `factory-shark/sequelize-v6` for v6. When migrating to the source build, replace versioned imports with `factory-shark`; the old versioned subpaths are removed.
 
 See [Sequelize compatibility](docs/architecture/sequelize-compatibility.md) for supported ranges and how new versions are qualified. See the [changelog](CHANGELOG.md) for release history.
 

@@ -8,7 +8,7 @@ import type {
 } from "sequelize"
 import { DataTypes, Model, Sequelize } from "sequelize"
 
-import { FactoryShark, type FactoryInterface } from "../src/sequelize-v6.js"
+import { FactoryShark, type FactoryInterface } from "../src/index.js"
 
 export class OrganizationRecord extends Model<
   InferAttributes<OrganizationRecord>,
