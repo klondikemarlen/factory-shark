@@ -9,9 +9,10 @@ const declarationDirectory = new URL("../dist/types/", import.meta.url)
 function runNodeScript(scriptPath, args) {
   const absoluteScriptPath = fileURLToPath(new URL(scriptPath, import.meta.url))
 
+  // Keep npm pack --json stdout machine-readable while preserving build diagnostics.
   execFileSync(process.execPath, [absoluteScriptPath, ...args], {
     cwd: projectRoot,
-    stdio: "inherit",
+    stdio: ["inherit", 2, 2],
   })
 }
 

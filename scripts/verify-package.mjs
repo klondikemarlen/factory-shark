@@ -21,7 +21,14 @@ function runCommand(command, argumentsList, workingDirectory = consumerDirectory
 
 function verifyPackageContents(artifact) {
   const packedFiles = new Set(artifact.files.map((file) => file.path))
-  const requiredFiles = ["dist/index.js", "dist/index.d.ts", "dist/types.d.ts", "LICENSE", "NOTICE"]
+  const requiredFiles = [
+    "dist/index.mjs",
+    "dist/index.cjs",
+    "dist/types/index.d.mts",
+    "dist/types/index.d.cts",
+    "LICENSE",
+    "NOTICE",
+  ]
   for (const requiredFile of requiredFiles) {
     assert.ok(packedFiles.has(requiredFile), `Missing packed file: ${requiredFile}`)
   }
@@ -34,6 +41,26 @@ function verifyPackageContents(artifact) {
 
   for (const packedFile of packedFiles) {
     assert.match(packedFile, allowedPath)
+  }
+  assert.ok(!packedFiles.has("dist/index.js"), "Legacy CommonJS entrypoint must be absent")
+  assert.ok(!packedFiles.has("dist/index.d.ts"), "Legacy root declaration must be absent")
+}
+
+function verifyInstalledArtifactImports(artifact) {
+  const packageDirectory = join(consumerDirectory, "node_modules/factory-shark")
+
+  for (const { path: packedPath } of artifact.files) {
+    if (!/^dist\/.*\.(?:mjs|cjs|js|d\.(?:mts|cts|ts))$/.test(packedPath)) {
+      continue
+    }
+
+    const sourcePath = join(packageDirectory, packedPath)
+    const source = readFileSync(sourcePath, "utf8")
+    assert.doesNotMatch(
+      source,
+      /["']@\//,
+      `Installed artifact contains a root alias: ${packedPath}`
+    )
   }
 }
 
@@ -54,6 +81,7 @@ function installConsumerDependencies(archivePath) {
       "@types/node": "22",
       "@faker-js/faker": "8.4.1",
       vitest: "4.1.5",
+      "tsc-alias": "1.9.9",
       // Match WRAP's resolved Vite peer before npm builds its dependency graph.
       vite: "7.3.1",
     },
@@ -91,10 +119,10 @@ function installSequelizeV6Consumer(archivePath, v6ConsumerDirectory) {
 }
 
 function writeSequelizeV6Consumer(v6ConsumerDirectory) {
-  const fixtureDirectory = join(projectRoot, "scripts/fixtures/sequelize-v6")
-  cpSync(fixtureDirectory, v6ConsumerDirectory, {
-    recursive: true,
-  })
+  const fixturePath = join(projectRoot, "scripts/fixtures/sequelize-v6/consumer.ts")
+  const consumerSource = readFileSync(fixturePath, "utf8")
+  writeFileSync(join(v6ConsumerDirectory, "consumer.cts"), consumerSource)
+  writeFileSync(join(v6ConsumerDirectory, "consumer.mts"), consumerSource)
 
   const compilerConfiguration = {
     compilerOptions: {
@@ -108,29 +136,37 @@ function writeSequelizeV6Consumer(v6ConsumerDirectory) {
       outDir: "compiled",
       types: ["node"],
     },
-    include: ["**/*.ts"],
+    include: ["consumer.cts", "consumer.mts"],
   }
   writeFileSync(join(v6ConsumerDirectory, "tsconfig.json"), JSON.stringify(compilerConfiguration))
 }
 
-function runSequelizeV6Consumer(archivePath, v6ConsumerDirectory) {
-  installSequelizeV6Consumer(archivePath, v6ConsumerDirectory)
-  writeSequelizeV6Consumer(v6ConsumerDirectory)
-
+function verifySequelizeV6ConsumerBoundary(v6ConsumerDirectory) {
   const dependencyCheck = `
     const assert = require("node:assert/strict")
     const { createRequire } = require("node:module")
     const consumerRequire = createRequire(${JSON.stringify(join(v6ConsumerDirectory, "package.json"))})
     const packageManifest = consumerRequire("factory-shark/package.json")
 
-    assert.equal(packageManifest.exports["."].require, "./dist/index.js")
-    assert.equal(typeof consumerRequire("factory-shark").FactoryShark.define, "function")
+    const packageExports = packageManifest.exports["."]
+    assert.equal(packageManifest.main, "./dist/index.cjs")
+    assert.equal(packageManifest.module, "./dist/index.mjs")
+    assert.equal(packageManifest.types, "./dist/types/index.d.cts")
+    const loadedPackage = consumerRequire("factory-shark")
+
+    assert.equal(packageExports.import.types, "./dist/types/index.d.mts")
+    assert.equal(packageExports.import.default, "./dist/index.mjs")
+    assert.equal(packageExports.require.types, "./dist/types/index.d.cts")
+    assert.equal(packageExports.require.default, "./dist/index.cjs")
+    assert.equal(packageExports.default, "./dist/index.mjs")
+    assert.equal(typeof loadedPackage.FactoryShark.define, "function")
+    assert.equal(typeof loadedPackage.default.define, "function")
 
     for (const dependency of ["@sequelize/core", "@sequelize/sqlite3"]) {
       assert.throws(() => consumerRequire.resolve(dependency), { code: "MODULE_NOT_FOUND" })
     }
 
-    console.log("Sequelize 6 consumer dependency boundary PASS: root API, no Sequelize 7 packages")
+    console.log("Sequelize 6 consumer dependency boundary PASS: root exports, no Sequelize 7 packages")
   `
   const dependencyOutput = runCommand(
     process.execPath,
@@ -138,17 +174,38 @@ function runSequelizeV6Consumer(archivePath, v6ConsumerDirectory) {
     v6ConsumerDirectory
   )
   console.log(dependencyOutput)
+}
+
+function runSequelizeV6Programs(v6ConsumerDirectory, installStage) {
+  for (const runtimeFile of ["consumer.mjs", "consumer.cjs"]) {
+    const consumerOutput = runCommand(
+      process.execPath,
+      [join(v6ConsumerDirectory, "compiled", runtimeFile)],
+      v6ConsumerDirectory
+    )
+    console.log(`Sequelize 6 ${runtimeFile} (${installStage}):\n${consumerOutput}`)
+  }
+}
+
+function runSequelizeV6Consumer(archivePath, v6ConsumerDirectory) {
+  installSequelizeV6Consumer(archivePath, v6ConsumerDirectory)
+  writeSequelizeV6Consumer(v6ConsumerDirectory)
+  verifySequelizeV6ConsumerBoundary(v6ConsumerDirectory)
 
   const compilerPath = join(v6ConsumerDirectory, "node_modules/typescript/bin/tsc")
   const compilerOutput = runCommand(process.execPath, [compilerPath], v6ConsumerDirectory)
   console.log(compilerOutput)
+  runSequelizeV6Programs(v6ConsumerDirectory, "with development dependencies")
 
-  const consumerOutput = runCommand(
-    process.execPath,
-    [join(v6ConsumerDirectory, "compiled/consumer.js")],
+  const pruneOutput = runCommand(
+    "npm",
+    ["prune", "--omit=dev", "--no-audit", "--no-fund"],
     v6ConsumerDirectory
   )
-  console.log(consumerOutput)
+  console.log(pruneOutput)
+
+  verifySequelizeV6ConsumerBoundary(v6ConsumerDirectory)
+  runSequelizeV6Programs(v6ConsumerDirectory, "after pruning development dependencies")
 }
 
 function verifySequelizeV6Consumer(archivePath) {
@@ -234,25 +291,49 @@ function verifySequelizeV7ConsumerBoundary() {
     const { createRequire } = require("node:module")
     const consumerRequire = createRequire(${JSON.stringify(join(consumerDirectory, "package.json"))})
     const packageManifest = consumerRequire("factory-shark/package.json")
+    const packageExports = packageManifest.exports["."]
+    const loadedPackage = consumerRequire("factory-shark")
+    assert.equal(packageManifest.main, "./dist/index.cjs")
+    assert.equal(packageManifest.module, "./dist/index.mjs")
+    assert.equal(packageManifest.types, "./dist/types/index.d.cts")
 
-    assert.ok(packageManifest.exports["."])
-    assert.equal(typeof consumerRequire("factory-shark").FactoryShark.define, "function")
+    assert.equal(packageExports.import.types, "./dist/types/index.d.mts")
+    assert.equal(packageExports.import.default, "./dist/index.mjs")
+    assert.equal(packageExports.require.types, "./dist/types/index.d.cts")
+    assert.equal(packageExports.require.default, "./dist/index.cjs")
+    assert.equal(packageExports.default, "./dist/index.mjs")
+    assert.equal(typeof loadedPackage.FactoryShark.define, "function")
+    assert.equal(typeof loadedPackage.default.define, "function")
     assert.throws(() => consumerRequire.resolve("sequelize"), { code: "MODULE_NOT_FOUND" })
 
-    console.log("Sequelize 7 consumer dependency boundary PASS: root API, no Sequelize 6 package")
+    console.log("Sequelize 7 consumer dependency boundary PASS: root exports, no Sequelize 6 package")
   `
   const dependencyOutput = runCommand(process.execPath, ["-e", dependencyCheck])
   console.log(dependencyOutput)
 }
 
+function runSequelizeV7Programs(installStage) {
+  const v7ConsumerDirectory = join(consumerDirectory, "sequelize-v7")
+
+  for (const runtimeFile of ["consumer.mjs", "consumer.cjs"]) {
+    const consumerOutput = runCommand(
+      process.execPath,
+      [join(v7ConsumerDirectory, "compiled", runtimeFile)],
+      v7ConsumerDirectory
+    )
+    console.log(`Sequelize 7 ${runtimeFile} (${installStage}):\n${consumerOutput}`)
+  }
+}
+
 function verifySequelizeV7TypesAndRuntime() {
   const v7ConsumerDirectory = join(consumerDirectory, "sequelize-v7")
-  const v7ConsumerPath = join(v7ConsumerDirectory, "consumer.ts")
-  const v7FixturePath = join(projectRoot, "scripts/fixtures/sequelize-v7-consumer.ts")
+  const fixturePath = join(projectRoot, "scripts/fixtures/sequelize-v7-consumer.ts")
+  const fixtureSource = readFileSync(fixturePath, "utf8")
   mkdirSync(v7ConsumerDirectory, {
     recursive: true,
   })
-  writeFileSync(v7ConsumerPath, readFileSync(v7FixturePath, "utf8"))
+  writeFileSync(join(v7ConsumerDirectory, "consumer.mts"), fixtureSource)
+  writeFileSync(join(v7ConsumerDirectory, "consumer.cts"), fixtureSource)
 
   const compilerConfiguration = {
     compilerOptions: {
@@ -268,26 +349,24 @@ function verifySequelizeV7TypesAndRuntime() {
       outDir: "compiled",
       types: ["node"],
     },
-    include: ["consumer.ts"],
+    include: ["consumer.cts", "consumer.mts"],
   }
   writeFileSync(join(v7ConsumerDirectory, "tsconfig.json"), JSON.stringify(compilerConfiguration))
 
   const compilerPath = join(consumerDirectory, "node_modules/typescript/bin/tsc")
   const compilerOutput = runCommand(process.execPath, [compilerPath], v7ConsumerDirectory)
   console.log(compilerOutput)
-
-  const consumerOutput = runCommand(
-    process.execPath,
-    [join(v7ConsumerDirectory, "compiled/consumer.js")],
-    v7ConsumerDirectory
-  )
-  console.log(consumerOutput)
+  runSequelizeV7Programs("with development dependencies")
 }
 
 function verifyTypedConsumer() {
   const compilerPath = join(consumerDirectory, "node_modules/typescript/bin/tsc")
   const compilerOutput = runCommand(process.execPath, [compilerPath])
   console.log(compilerOutput)
+
+  // Rewrite source aliases so the compiled runtime harness can use Node directly.
+  const aliasRewriteOutput = runCommand("npm", ["exec", "--", "tsc-alias", "-p", "tsconfig.json"])
+  console.log(aliasRewriteOutput)
 
   const vitestPath = join(consumerDirectory, "node_modules/vitest/vitest.mjs")
   const exampleOutput = runCommand(process.execPath, [
@@ -304,6 +383,7 @@ function verifyCommonJsConsumer() {
   const pruneOutput = runCommand("npm", ["prune", "--omit=dev", "--no-audit", "--no-fund"])
   console.log(pruneOutput)
   verifySequelizeV7ConsumerBoundary()
+  runSequelizeV7Programs("after pruning development dependencies")
 
   const commonJsExample = `
     const assert = require("node:assert/strict")
@@ -369,6 +449,7 @@ try {
 
   verifyPackageContents(artifact)
   installConsumerDependencies(archivePath)
+  verifyInstalledArtifactImports(artifact)
   verifySequelizeV7TypesAndRuntime()
   verifySequelizeV7ConsumerBoundary()
   writeConsumerExamples()
