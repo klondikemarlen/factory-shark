@@ -10,7 +10,7 @@ import {
   WorkflowAccessByUser,
   WorkflowCategory,
   WorkflowPlayer,
-} from "./models"
+} from "@/models"
 
 export function initializeModels(): Sequelize {
   const sequelize = new Sequelize({

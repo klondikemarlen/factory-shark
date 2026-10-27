@@ -2,10 +2,10 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
 
-import { isUndefined } from "lodash"
+import isUndefined from "lodash/isUndefined.js"
 
-import { createFixture } from "./support.js"
-import type { Fixture, OrganizationRecord, ProjectRecord } from "./support.js"
+import { createFixture } from "@/tests/support.js"
+import type { Fixture, OrganizationRecord, ProjectRecord } from "@/tests/support.js"
 
 import {
   AssociationManager,
@@ -13,7 +13,7 @@ import {
   AttributeBuilder,
   FactoryContext,
   FactoryShark,
-} from "../src/index.js"
+} from "@/src/index.js"
 
 type FixtureScenario = (fixture: Fixture) => Promise<void>
 

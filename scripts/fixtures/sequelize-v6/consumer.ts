@@ -10,7 +10,7 @@ import type {
 } from "sequelize"
 import { DataTypes, Model, Sequelize } from "sequelize"
 
-import { FactoryContext, FactoryShark } from "factory-shark"
+import FactorySharkDefault, { FactoryContext, FactoryShark } from "factory-shark"
 import type { FactoryInterface, FactoryParams } from "factory-shark"
 
 class OrganizationRecord extends Model<
@@ -151,7 +151,7 @@ function createFixture(): Fixture {
     foreignKey: "organizationId",
   })
 
-  const organizationFactory = FactoryShark.define(Organization, ({ sequence }) => ({
+  const organizationFactory = FactorySharkDefault.define(Organization, ({ sequence }) => ({
     name: `Organization ${sequence}`,
   }))
   const categoryFactory = FactoryShark.define(Category, ({ sequence, associate }) => {
@@ -240,6 +240,16 @@ export function checkInstalledConsumerTypes(
   Project: ModelStatic<ConcreteProjectRecord>,
   Organization: ModelStatic<OrganizationRecord>
 ) {
+  const defaultProjectFactory = FactorySharkDefault.define(Project, () => ({
+    title: "Typed default project",
+    nullableNote: null,
+    metadata: {
+      source: "typed default",
+    },
+  }))
+  const defaultProject: ConcreteProjectRecord = defaultProjectFactory.build()
+  void defaultProject
+
   const projectFactory = FactoryShark.define(Project, () => ({
     title: "Typed project",
     nullableNote: null,

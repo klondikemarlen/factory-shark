@@ -11,7 +11,7 @@ import type {
 import { DataTypes, Model, Sequelize } from "@sequelize/core"
 import { SqliteDialect } from "@sequelize/sqlite3"
 
-import { FactoryContext, FactoryShark } from "factory-shark"
+import FactorySharkDefault, { FactoryContext, FactoryShark } from "factory-shark"
 import type { FactoryInterface, FactoryParams } from "factory-shark"
 
 class OrganizationRecord extends Model<
@@ -44,6 +44,11 @@ async function verifyRootConsumer(): Promise<void> {
     dialect: SqliteDialect,
     storage: ":memory:",
     logging: false,
+    pool: {
+      max: 1,
+      idle: Infinity,
+      maxUses: Infinity,
+    },
   })
 
   try {
@@ -96,8 +101,8 @@ async function verifyRootConsumer(): Promise<void> {
       foreignKey: "organizationId",
     })
 
-    const organizationFactory = FactoryShark.define(Organization, ({ sequence }) => ({
-      name: `Organization ${sequence}`,
+    const organizationFactory = FactorySharkDefault.define(Organization, () => ({
+      name: "Packed organization",
     }))
     const projectFactory = FactoryShark.define(Project, ({ associate }) => {
       associate<OrganizationRecord>("organization", organizationFactory)
@@ -110,10 +115,20 @@ async function verifyRootConsumer(): Promise<void> {
         },
       }
     })
+    await sequelize.sync({
+      force: true,
+    })
+
     const project = projectFactory.build()
 
     assert.equal(project instanceof Project, true)
     assert.equal(project.title, "Root Sequelize 7 consumer")
+
+    const createdProject = await projectFactory.create()
+    const associatedOrganization = await Organization.findByPk(createdProject.organizationId)
+    assert.ok(associatedOrganization)
+    assert.equal(associatedOrganization.name, "Packed organization")
+    assert.equal(await Project.count(), 1)
   } finally {
     await sequelize.close()
   }
@@ -123,6 +138,12 @@ function checkRootConsumerTypes(
   Project: ModelStatic<ProjectRecord>,
   Organization: ModelStatic<OrganizationRecord>
 ) {
+  const defaultOrganizationFactory = FactorySharkDefault.define(Organization, ({ sequence }) => ({
+    name: `Typed organization ${sequence}`,
+  }))
+  const defaultOrganization: OrganizationRecord = defaultOrganizationFactory.build()
+  void defaultOrganization
+
   const organizationFactory = FactoryShark.define(Organization, ({ sequence }) => ({
     name: `Typed organization ${sequence}`,
   }))

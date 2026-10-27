@@ -8,7 +8,7 @@ import type {
   CoreFactoryParams,
   CoreGeneratorReturn,
   GeneratorFn,
-} from "./types"
+} from "@/src/types.js"
 
 export type AttributeBuilderOptions<
   T extends object,

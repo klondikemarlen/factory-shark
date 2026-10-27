@@ -1,17 +1,17 @@
 // Originally from WRAP's FactoryShark; extracted and modified for standalone distribution.
 // Apache-2.0 terms and original attribution are preserved.
 
-import { AssociationManager } from "./association-manager"
-import { AttributeBuilder } from "./attribute-builder"
-import { FactoryContext } from "./factory-context"
-import type { FactoryAdapter } from "./orm-adapter"
+import { AssociationManager } from "@/src/association-manager.js"
+import { AttributeBuilder } from "@/src/attribute-builder.js"
+import { FactoryContext } from "@/src/factory-context.js"
+import type { FactoryAdapter } from "@/src/orm-adapter.js"
 import type {
   AfterCreateFn,
   BeforeCreateFn,
   CoreFactoryParams,
   FactoryInterface,
   GeneratorFn,
-} from "./types"
+} from "@/src/types.js"
 
 export class FactoryBuilder<
   T extends object,

@@ -17,13 +17,20 @@
     "typescript"
   ],
   "type": "commonjs",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/types/index.d.cts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "require": "./dist/index.js",
-      "default": "./dist/index.js"
+      "import": {
+        "types": "./dist/types/index.d.mts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/types/index.d.cts",
+        "default": "./dist/index.cjs"
+      },
+      "default": "./dist/index.mjs"
     },
     "./package.json": "./package.json"
   },
@@ -72,7 +79,9 @@
     "prettier": "3.9.10",
     "sequelize": "6.37.8",
     "sqlite3": "^5.1.7",
+    "tsc-alias": "1.9.9",
     "tsx": "^4.23.15",
-    "typescript": "5.9.3"
+    "typescript": "7.0.2",
+    "vite": "8.3.5"
   }
 }

@@ -10,8 +10,8 @@ import type {
 import { DataTypes, Model, Sequelize } from "@sequelize/core"
 import { SqliteDialect } from "@sequelize/sqlite3"
 
-import { FactoryShark } from "../src/index.js"
-import type { FactoryInterface } from "../src/index.js"
+import { FactoryShark } from "@/src/index.js"
+import type { FactoryInterface } from "@/src/index.js"
 
 export class OrganizationRecord extends Model<
   InferAttributes<OrganizationRecord>,

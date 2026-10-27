@@ -1,7 +1,7 @@
 // Originally from WRAP's FactoryShark; extracted and modified for standalone distribution.
 // Apache-2.0 terms and original attribution are preserved.
 
-import { FactoryShark } from "./factory-shark"
+import { FactoryShark } from "@/src/factory-shark.js"
 
 export {
   AssociationManager,
@@ -13,7 +13,7 @@ export {
   ForeignKeyNotFoundError,
   isModel,
   PRIMARY_KEY,
-} from "./factory-shark"
+} from "./factory-shark.js"
 
 export type {
   AfterCreateFn,
@@ -24,6 +24,6 @@ export type {
   FactoryParams,
   GeneratorFn,
   RejectExcessKeys,
-} from "./factory-shark"
+} from "./factory-shark.js"
 
 export default FactoryShark

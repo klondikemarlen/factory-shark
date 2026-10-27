@@ -1,15 +1,15 @@
 // Originally from WRAP's FactoryShark; extracted and modified for standalone distribution.
 // Apache-2.0 terms and original attribution are preserved.
 
-import { AssociationNotFoundError, ForeignKeyNotFoundError } from "./errors"
-import type { FactoryAdapter } from "./orm-adapter"
+import { AssociationNotFoundError, ForeignKeyNotFoundError } from "@/src/errors.js"
+import type { FactoryAdapter } from "@/src/orm-adapter.js"
 import type {
   AssociateFunction,
   AssociationFactory,
   AssociationName,
   CoreFactoryParams,
   ForeignKeyName,
-} from "./types"
+} from "@/src/types.js"
 
 export type AssociationRegistration<T extends object, Attributes extends object> = {
   name: AssociationName<T>
