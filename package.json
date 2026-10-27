@@ -25,16 +25,6 @@
       "require": "./dist/index.js",
       "default": "./dist/index.js"
     },
-    "./sequelize-v6": {
-      "types": "./dist/sequelize-v6.d.ts",
-      "require": "./dist/sequelize-v6.js",
-      "default": "./dist/sequelize-v6.js"
-    },
-    "./sequelize-v7": {
-      "types": "./dist/sequelize-v7.d.ts",
-      "require": "./dist/sequelize-v7.js",
-      "default": "./dist/sequelize-v7.js"
-    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -70,13 +60,15 @@
     }
   },
   "dependencies": {
-    "lodash": "^4.17.21"
+    "lodash": "^4.17.21",
+    "semver": "^7.8.5"
   },
   "devDependencies": {
     "@sequelize/core": "7.0.0-alpha.48",
     "@sequelize/sqlite3": "7.0.0-alpha.48",
     "@types/lodash": "^4.17.20",
     "@types/node": "^22.20.0",
+    "@types/semver": "^7.8.0",
     "prettier": "3.9.10",
     "sequelize": "6.37.8",
     "sqlite3": "^5.1.7",
