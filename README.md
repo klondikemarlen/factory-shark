@@ -9,7 +9,7 @@ FactoryShark grew out of using Fishery for Sequelize tests. We wanted better han
 Install FactoryShark as a development dependency for test factories:
 
 ```sh
-npm install --save-dev factory-shark@1.0.0
+npm install --save-dev factory-shark@1.1.0
 ```
 
 If you use it outside tests, install it as a runtime dependency instead. `create()` writes real database records, so use isolated test persistence and never point test factories at production data.
@@ -27,7 +27,7 @@ The supported model convention uses `id` as the primary key. Custom primary-key 
 
 Existing v7 projects can keep their root imports. For v6, import `FactoryShark` and its factory types from `factory-shark/sequelize-v6`; the factory API stays the same. The examples below use the v7 root entry point.
 
-The v6 integration is available in the source build and is not included in npm version 1.0.0. See [Sequelize compatibility](docs/architecture/sequelize-compatibility.md) for supported ranges, local artifact use, and how new versions are qualified.
+See [Sequelize compatibility](docs/architecture/sequelize-compatibility.md) for supported ranges and how new versions are qualified. See the [changelog](CHANGELOG.md) for release history.
 
 ## Define Factories Alongside Your Tests
 

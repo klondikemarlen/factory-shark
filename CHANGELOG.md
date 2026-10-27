@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.1.0
 
 - Remove unused internal type parameters from attribute evaluation while preserving public factory typing and runtime behavior.
 - Isolate Sequelize-specific model types and operations behind a shared-engine compatibility layer; retain existing v7 root imports and provide explicit v6/v7 entry points.

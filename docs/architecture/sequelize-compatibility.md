@@ -11,13 +11,13 @@ FactoryShark separates factory evaluation from the Sequelize integration. A proj
 
 The root entry point remains the v7 integration so existing projects do not need an import migration. A v6 consumer imports its factory and type helpers from `factory-shark/sequelize-v6`. Keep factories in one association graph on the same integration and Sequelize installation. Both peers are optional in package metadata so choosing one does not install the other. The consuming application supplies its ORM and dialect.
 
-The compatibility entry points are available in the source build. Published npm version 1.0.0 predates the v6 integration; a local packed artifact is not proof that a newer registry release exists. Follow the authorized release procedure in [CONTRIBUTING.md](/CONTRIBUTING.md) before documenting a new published version.
+Both integration entry points are included in FactoryShark 1.1.0. Install the package with your application's Sequelize version and choose the matching import. Release and registry verification procedures live in [CONTRIBUTING.md](/CONTRIBUTING.md).
 
 ## Trying the Source Build
 
 In a FactoryShark checkout, run `npm ci` followed by `npm pack --json`. The pack output identifies the `.tgz` filename. Install that artifact from your application's checkout with `npm install --save-dev <tarball-path>`, replacing `<tarball-path>` with its actual path, and import the integration matching your application's Sequelize package.
 
-The artifact retains the source package version until a versioned release is prepared. Use its file path and recorded integrity to identify a local build; do not confuse it with the existing registry artifact of the same version.
+A local build can differ from the registry artifact of the same version. Use its file path and recorded integrity to identify it rather than treating a successful source install as registry-release evidence.
 
 ## Boundary and Ownership
 
