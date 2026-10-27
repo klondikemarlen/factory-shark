@@ -21,20 +21,13 @@ function runCommand(command, argumentsList, workingDirectory = consumerDirectory
 
 function verifyPackageContents(artifact) {
   const packedFiles = new Set(artifact.files.map((file) => file.path))
-  const requiredFiles = [
-    "dist/index.js",
-    "dist/index.d.ts",
-    "dist/sequelize-v6.js",
-    "dist/sequelize-v6.d.ts",
-    "dist/sequelize-v7.js",
-    "dist/sequelize-v7.d.ts",
-    "dist/types.d.ts",
-    "LICENSE",
-    "NOTICE",
-  ]
-
+  const requiredFiles = ["dist/index.js", "dist/index.d.ts", "dist/types.d.ts", "LICENSE", "NOTICE"]
   for (const requiredFile of requiredFiles) {
     assert.ok(packedFiles.has(requiredFile), `Missing packed file: ${requiredFile}`)
+  }
+
+  for (const packedFile of packedFiles) {
+    assert.doesNotMatch(packedFile, /^dist\/sequelize-v[67]\./)
   }
 
   const allowedPath = /^(dist\/|src\/|package\.json$|README\.md$|LICENSE$|NOTICE$)/
@@ -130,13 +123,14 @@ function runSequelizeV6Consumer(archivePath, v6ConsumerDirectory) {
     const consumerRequire = createRequire(${JSON.stringify(join(v6ConsumerDirectory, "package.json"))})
     const packageManifest = consumerRequire("factory-shark/package.json")
 
-    assert.equal(packageManifest.exports["./sequelize-v6"].require, "./dist/sequelize-v6.js")
+    assert.equal(packageManifest.exports["."].require, "./dist/index.js")
+    assert.equal(typeof consumerRequire("factory-shark").FactoryShark.define, "function")
 
     for (const dependency of ["@sequelize/core", "@sequelize/sqlite3"]) {
       assert.throws(() => consumerRequire.resolve(dependency), { code: "MODULE_NOT_FOUND" })
     }
 
-    console.log("Sequelize 6 consumer dependency boundary PASS: no Sequelize 7 packages installed")
+    console.log("Sequelize 6 consumer dependency boundary PASS: root API, no Sequelize 7 packages")
   `
   const dependencyOutput = runCommand(
     process.execPath,
@@ -234,6 +228,59 @@ function writeConsumerExamples() {
     `export default ${JSON.stringify(vitestConfiguration)}`
   )
 }
+function verifySequelizeV7ConsumerBoundary() {
+  const dependencyCheck = `
+    const assert = require("node:assert/strict")
+    const { createRequire } = require("node:module")
+    const consumerRequire = createRequire(${JSON.stringify(join(consumerDirectory, "package.json"))})
+    const packageManifest = consumerRequire("factory-shark/package.json")
+
+    assert.ok(packageManifest.exports["."])
+    assert.equal(typeof consumerRequire("factory-shark").FactoryShark.define, "function")
+    assert.throws(() => consumerRequire.resolve("sequelize"), { code: "MODULE_NOT_FOUND" })
+
+    console.log("Sequelize 7 consumer dependency boundary PASS: root API, no Sequelize 6 package")
+  `
+  const dependencyOutput = runCommand(process.execPath, ["-e", dependencyCheck])
+  console.log(dependencyOutput)
+}
+
+function verifySequelizeV7TypesAndRuntime() {
+  const v7ConsumerDirectory = join(consumerDirectory, "sequelize-v7")
+  const v7ConsumerPath = join(v7ConsumerDirectory, "consumer.ts")
+  const v7FixturePath = join(projectRoot, "scripts/fixtures/sequelize-v7-consumer.ts")
+  mkdirSync(v7ConsumerDirectory, {
+    recursive: true,
+  })
+  writeFileSync(v7ConsumerPath, readFileSync(v7FixturePath, "utf8"))
+
+  const compilerConfiguration = {
+    compilerOptions: {
+      target: "ES2020",
+      module: "Node16",
+      moduleResolution: "Node16",
+      strict: true,
+      esModuleInterop: true,
+      skipLibCheck: false,
+      noEmitOnError: true,
+      outDir: "compiled",
+      types: ["node"],
+    },
+    include: ["consumer.ts"],
+  }
+  writeFileSync(join(v7ConsumerDirectory, "tsconfig.json"), JSON.stringify(compilerConfiguration))
+
+  const compilerPath = join(consumerDirectory, "node_modules/typescript/bin/tsc")
+  const compilerOutput = runCommand(process.execPath, [compilerPath], v7ConsumerDirectory)
+  console.log(compilerOutput)
+
+  const consumerOutput = runCommand(
+    process.execPath,
+    [join(v7ConsumerDirectory, "compiled/consumer.js")],
+    v7ConsumerDirectory
+  )
+  console.log(consumerOutput)
+}
 
 function verifyTypedConsumer() {
   const compilerPath = join(consumerDirectory, "node_modules/typescript/bin/tsc")
@@ -254,6 +301,7 @@ function verifyTypedConsumer() {
 function verifyCommonJsConsumer() {
   const pruneOutput = runCommand("npm", ["prune", "--omit=dev", "--no-audit", "--no-fund"])
   console.log(pruneOutput)
+  verifySequelizeV7ConsumerBoundary()
 
   const commonJsExample = `
     const assert = require("node:assert/strict")
@@ -319,6 +367,8 @@ try {
 
   verifyPackageContents(artifact)
   installConsumerDependencies(archivePath)
+  verifySequelizeV7TypesAndRuntime()
+  verifySequelizeV7ConsumerBoundary()
   writeConsumerExamples()
   verifyTypedConsumer()
   verifyCommonJsConsumer()
