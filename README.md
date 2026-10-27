@@ -14,20 +14,18 @@ npm install --save-dev factory-shark@1.1.0
 
 If you use it outside tests, install it as a runtime dependency instead. `create()` writes real database records, so use isolated test persistence and never point test factories at production data.
 
-FactoryShark supports Node.js 22 and 24. The Unreleased source build provides native ESM and CommonJS bundles with format-specific TypeScript declarations. Use TypeScript's Node16 or NodeNext resolution; both default and named `FactoryShark` imports are supported, as is `require("factory-shark").FactoryShark`. Your application supplies Sequelize and a matching dialect. Published `1.1.0` remains CommonJS-only until a new release is authorized.
+FactoryShark supports Node.js 22 and 24 and ships CommonJS code with TypeScript declarations. Use TypeScript's Node16 module resolution and `esModuleInterop`, or CommonJS `require("factory-shark").FactoryShark`. Your application supplies Sequelize and a matching dialect.
 
 The supported model convention uses `id` as the primary key. Custom primary-key names and associations other than `belongsTo` are not supported.
 
-### One Import for Supported Sequelize Models
+### Choose Your Sequelize Integration
 
-| Sequelize API          | Verified release |
-| ---------------------- | ---------------- |
-| v6 (`sequelize`)       | `6.37.8`         |
-| v7 (`@sequelize/core`) | `7.0.0-alpha.48` |
+| Sequelize API          | Verified release | Import                       |
+| ---------------------- | ---------------- | ---------------------------- |
+| v6 (`sequelize`)       | `6.37.8`         | `factory-shark/sequelize-v6` |
+| v7 (`@sequelize/core`) | `7.0.0-alpha.48` | `factory-shark`              |
 
-Import `FactoryShark` and its factory types from `factory-shark` for either ORM. The supplied model determines the integration; your factories do not choose a versioned import. Your application supplies its ORM and matching dialect, and does not need the other ORM package installed.
-
-This unified API is currently **Unreleased** and available from a local source build. Published `1.1.0` retains its earlier entry points: root imports for v7 and `factory-shark/sequelize-v6` for v6. When migrating to the source build, replace versioned imports with `factory-shark`; the old versioned subpaths are removed.
+Import `FactoryShark` and its factory types from the entry point for your Sequelize version. Sequelize 7 also supports the explicit `factory-shark/sequelize-v7` entry point. The examples below use the Sequelize 7 root entry point. Your application supplies its ORM and matching dialect, and does not need the other ORM package installed.
 
 See [Sequelize compatibility](docs/architecture/sequelize-compatibility.md) for supported ranges and how new versions are qualified. See the [changelog](CHANGELOG.md) for release history.
 
