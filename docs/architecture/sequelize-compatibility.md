@@ -11,9 +11,9 @@ FactoryShark separates factory evaluation from Sequelize integration. Consumers 
 
 Your application supplies its ORM and dialect. Both peers remain optional, so a v6-only project does not need v7 installed, and vice versa. A process may contain both families: selection follows the supplied model, not whichever package happens to be found first. Keep related models in the same association graph on one Sequelize installation.
 
-The unified root API is an Unreleased source change. Published `1.1.0` has the earlier explicit v6/v7 entry points. Migrating to this source build removes those versioned subpaths: import factories and factory types from `factory-shark` instead. Root-import v7 callers keep their import.
+FactoryShark 2 uses the root API for both families. When upgrading from 1.x, replace `factory-shark/sequelize-v6` and `factory-shark/sequelize-v7` imports with `factory-shark`; the versioned subpaths are no longer exported. Existing v7 root imports stay the same.
 
-## Trying the Source Build
+## Local Package Builds
 
 In a FactoryShark checkout, run `npm ci` followed by `npm pack --json`. The pack output identifies the `.tgz` filename. Install that artifact from your application's checkout with `npm install --save-dev <tarball-path>`, replacing `<tarball-path>` with its actual path. Both families use the root `factory-shark` import.
 

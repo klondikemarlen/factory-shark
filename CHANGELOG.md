@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.0.0
 
 - Keep README installation and compatibility guidance aligned with the published package rather than source-only capabilities.
 - Use the MIT License and remove repetitive source headers and the standalone notice file.
@@ -8,7 +8,7 @@
 - Use repository-root `@/` imports throughout library and test sources, with matching compiler, test-runner, and bundler resolution.
 - Build native ESM and CommonJS bundles with Vite and export format-specific declaration entries; keep runtime dependencies external and emitted declarations free of repository aliases.
 - Upgrade project tooling to stable TypeScript 7.0.2 while retaining TypeScript 5.4.5 installed-consumer checks.
-- **Breaking:** use one model-driven `factory-shark` API for Sequelize 6 and 7; remove the `factory-shark/sequelize-v6` and `factory-shark/sequelize-v7` subpaths. Replace versioned factory imports with the package root.
+- **Breaking:** use one model-driven `factory-shark` API for Sequelize 6 and 7; remove the `factory-shark/sequelize-v6` and `factory-shark/sequelize-v7` subpaths. Replace versioned factory imports with the package root. Existing v7 root imports are unchanged.
 - Group Sequelize runtime and type integration code under `src/compatibility/sequelize/`, without duplicating the factory engine or requiring the unused ORM package.
 - Keep native Sequelize association lookup details behind the compatibility boundary; document how API-contract changes within a major version reuse the shared factory engine.
 
