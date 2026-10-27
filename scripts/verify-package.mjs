@@ -257,6 +257,8 @@ function verifySequelizeV7TypesAndRuntime() {
   const compilerConfiguration = {
     compilerOptions: {
       target: "ES2020",
+      // Sequelize 7 declares Error.cause; supported Node 22/24 provide this native API.
+      lib: ["ES2022"],
       module: "Node16",
       moduleResolution: "Node16",
       strict: true,
