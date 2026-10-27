@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Configure finite TypeScript runtime verification through the existing factory scenarios and typecheck, without disabling the check or duplicating compiler commands.
 - Use repository-root `@/` imports throughout library and test sources, with matching compiler, test-runner, and bundler resolution.
 - Build native ESM and CommonJS bundles with Vite and export format-specific declaration entries; keep runtime dependencies external and emitted declarations free of repository aliases.
 - Upgrade project tooling to stable TypeScript 7.0.2 while retaining TypeScript 5.4.5 installed-consumer checks.
