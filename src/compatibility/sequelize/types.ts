@@ -11,11 +11,4 @@ export type SequelizeModel<T extends object = object> = {
 
 export type SequelizeCreationAttributes<T extends SequelizeModel> = T["_creationAttributes"]
 
-export type SequelizeAssociation = {
-  foreignKey?: string
-  target: {
-    findByPk(id: string | number): Promise<object | null>
-  }
-}
-
 export type SequelizeModelStatic<T extends SequelizeModel> = new (...args: never[]) => T
