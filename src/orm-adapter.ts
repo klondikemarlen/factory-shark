@@ -1,6 +1,3 @@
-// Originally from WRAP's FactoryShark; extracted and modified for standalone distribution.
-// Apache-2.0 terms and original attribution are preserved.
-
 export type FactoryAdapter<T extends object, Attributes extends object, ModelClass> = {
   build(modelClass: ModelClass, attributes: Attributes): T
   save(model: T): Promise<T>

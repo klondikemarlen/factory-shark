@@ -1,4 +1,3 @@
-// Adapted from WRAP FactoryShark acceptance tests under Apache-2.0; rewritten as isolated standalone scenarios.
 import assert from "node:assert/strict"
 import { test } from "node:test"
 
