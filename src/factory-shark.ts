@@ -5,20 +5,20 @@ import type {
   SequelizeCreationAttributes as InferCreationAttributes,
   SequelizeModel as Model,
   SequelizeModelStatic as ModelStatic,
-} from "./compatibility/sequelize/types"
+} from "@/src/compatibility/sequelize/types.js"
 
 import {
   createSequelizeAdapter,
   isSupportedSequelizeModel,
-} from "./compatibility/sequelize/create-sequelize-adapter"
+} from "@/src/compatibility/sequelize/create-sequelize-adapter.js"
 
-import { AssociationManager as CoreAssociationManager } from "./association-manager"
-import { AttributeBuilder as CoreAttributeBuilder } from "./attribute-builder"
-import { FactoryBuilder } from "./factory-builder"
-import { FactoryContext as CoreFactoryContext } from "./factory-context"
-import type { FactoryAdapter } from "./orm-adapter"
-import type { AttributeBuilderOptions as CoreAttributeBuilderOptions } from "./attribute-builder"
-import type { AssociationRegistration as CoreAssociationRegistration } from "./factory-context"
+import { AssociationManager as CoreAssociationManager } from "@/src/association-manager.js"
+import { AttributeBuilder as CoreAttributeBuilder } from "@/src/attribute-builder.js"
+import { FactoryBuilder } from "@/src/factory-builder.js"
+import { FactoryContext as CoreFactoryContext } from "@/src/factory-context.js"
+import type { FactoryAdapter } from "@/src/orm-adapter.js"
+import type { AttributeBuilderOptions as CoreAttributeBuilderOptions } from "@/src/attribute-builder.js"
+import type { AssociationRegistration as CoreAssociationRegistration } from "@/src/factory-context.js"
 import type {
   AssociateFunction as CoreAssociateFunction,
   AssociationName,
@@ -27,7 +27,7 @@ import type {
   GeneratorContext as CoreGeneratorContext,
   GeneratorFn as CoreGeneratorFn,
   RejectExcessKeys,
-} from "./types"
+} from "@/src/types.js"
 
 export type FactoryParams<T extends Model> = CoreFactoryParams<T, InferCreationAttributes<T>>
 type PublicAssociateFunction<T extends Model> = <A extends Model>(
@@ -234,14 +234,14 @@ export class AttributeBuilder<
   }
 }
 
-export { AssociationNotFoundError, ForeignKeyNotFoundError } from "./errors"
-export { CreateStrategy } from "./strategy/create-strategy"
+export { AssociationNotFoundError, ForeignKeyNotFoundError } from "./errors.js"
+export { CreateStrategy } from "./strategy/create-strategy.js"
 
 export function isModel(value: unknown): value is Model {
   return isSupportedSequelizeModel(value)
 }
 
-export { PRIMARY_KEY } from "./utils"
-export type { AfterCreateFn, BeforeCreateFn, RejectExcessKeys } from "./types"
+export { PRIMARY_KEY } from "./utils.js"
+export type { AfterCreateFn, BeforeCreateFn, RejectExcessKeys } from "./types.js"
 
 export default FactoryShark

@@ -1,11 +1,11 @@
 // Originally from WRAP's FactoryShark; extracted and modified for standalone distribution.
 // Apache-2.0 terms and original attribution are preserved.
 
-import { isUndefined } from "lodash"
+import isUndefined from "lodash/isUndefined.js"
 import { satisfies } from "semver"
 
-import { CreateStrategy } from "../../strategy/create-strategy"
-import type { FactoryAdapter, FactoryAssociation } from "../../orm-adapter"
+import { CreateStrategy } from "@/src/strategy/create-strategy.js"
+import type { FactoryAdapter, FactoryAssociation } from "@/src/orm-adapter.js"
 
 export type SequelizeModelProtocol = {
   _creationAttributes: object

@@ -1,19 +1,20 @@
 // Originally from WRAP's FactoryShark; extracted and modified for standalone distribution.
 // Apache-2.0 terms and original attribution are preserved.
 
-import { isNil, isUndefined } from "lodash"
+import isNil from "lodash/isNil.js"
+import isUndefined from "lodash/isUndefined.js"
 
-import { AssociationNotFoundError } from "./errors"
-import type { AssociationRegistration } from "./factory-context"
-import type { FactoryAdapter } from "./orm-adapter"
-import { PRIMARY_KEY } from "./utils"
+import { AssociationNotFoundError } from "@/src/errors.js"
+import { PRIMARY_KEY } from "@/src/utils.js"
+import type { AssociationRegistration } from "@/src/factory-context.js"
+import type { FactoryAdapter } from "@/src/orm-adapter.js"
 import type {
   AssociationName,
   CoreFactoryParams,
   ForeignKeyName,
   ForeignKeyValue,
   MinimalAssociation,
-} from "./types"
+} from "@/src/types.js"
 
 export class AssociationManager<T extends object, Attributes extends object, ModelClass> {
   constructor(

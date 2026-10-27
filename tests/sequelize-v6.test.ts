@@ -3,17 +3,17 @@ import { test } from "node:test"
 
 import type { ModelStatic } from "sequelize"
 
-import { createFixture } from "./support.js"
-import type { Fixture as SequelizeV7Fixture } from "./support.js"
-import { createSequelizeV6Fixture } from "./sequelize-v6-support.js"
+import { createFixture } from "@/tests/support.js"
+import { createSequelizeV6Fixture } from "@/tests/sequelize-v6-support.js"
+import type { Fixture as SequelizeV7Fixture } from "@/tests/support.js"
 import type {
   OrganizationRecord,
   ProjectRecord,
   SequelizeV6Fixture,
-} from "./sequelize-v6-support.js"
+} from "@/tests/sequelize-v6-support.js"
 
-import { FactoryContext, FactoryShark } from "../src/index.js"
-import type { FactoryInterface, FactoryParams } from "../src/index.js"
+import { FactoryContext, FactoryShark } from "@/src/index.js"
+import type { FactoryInterface, FactoryParams } from "@/src/index.js"
 
 type FixtureScenario = (fixture: SequelizeV6Fixture) => Promise<void>
 
