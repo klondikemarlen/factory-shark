@@ -1,0 +1,15 @@
+#!/bin/sh
+set -eu
+
+case "${1-}" in
+  runtime)
+    exec npm test
+    ;;
+  types)
+    exec npm run typecheck
+    ;;
+  *)
+    printf '%s\n' 'Usage: bin/check-typescript runtime|types' >&2
+    exit 2
+    ;;
+esac
