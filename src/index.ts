@@ -1,7 +1,7 @@
 // Originally from WRAP's FactoryShark; extracted and modified for standalone distribution.
 // Apache-2.0 terms and original attribution are preserved.
 
-import { FactoryShark } from "./sequelize-v7"
+import { FactoryShark } from "./factory-shark"
 
 export {
   AssociationManager,
@@ -13,8 +13,17 @@ export {
   ForeignKeyNotFoundError,
   isModel,
   PRIMARY_KEY,
-} from "./sequelize-v7"
+} from "./factory-shark"
 
-export type { BeforeCreateFn, FactoryInterface, FactoryParams, GeneratorFn } from "./sequelize-v7"
+export type {
+  AfterCreateFn,
+  AssociationRegistration,
+  AttributeBuilderOptions,
+  BeforeCreateFn,
+  FactoryInterface,
+  FactoryParams,
+  GeneratorFn,
+  RejectExcessKeys,
+} from "./factory-shark"
 
 export default FactoryShark
