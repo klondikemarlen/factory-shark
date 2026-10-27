@@ -13,10 +13,16 @@ export type SequelizeModelProtocol = {
   set(keyOrValues: string | object, value?: unknown): unknown
 }
 
+type SequelizeAssociationProtocol = FactoryAssociation & {
+  target: {
+    findByPk(id: string | number): Promise<object | null>
+  }
+}
+
 type SequelizeModelClassProtocol<T extends object, Attributes extends object> = {
   name: string
   build(attributes: Attributes): T
-  associations: Record<string, FactoryAssociation | undefined>
+  associations: Record<string, SequelizeAssociationProtocol | undefined>
 }
 
 export function createSequelizeAdapter<
@@ -58,7 +64,7 @@ export function createSequelizeAdapter<
       return getStatic(modelClass).associations[name]
     },
     findByPk(association, id) {
-      return association.target.findByPk(id)
+      return (association as SequelizeAssociationProtocol).target.findByPk(id)
     },
     assertCompatibleModelClass(modelClass) {
       if (!isCompatibleModelClass(modelClass)) {
