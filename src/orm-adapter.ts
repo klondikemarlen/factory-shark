@@ -16,9 +16,7 @@ export type FactoryAdapter<T extends object, Attributes extends object, ModelCla
   associationNames(modelClass: ModelClass): string[]
 }
 
+// The engine needs metadata only; each adapter owns its native association lookup.
 export type FactoryAssociation = {
   foreignKey?: string
-  target: {
-    findByPk(id: string | number): Promise<object | null>
-  }
 }
