@@ -1,5 +1,6 @@
 import { resolve, sep } from "node:path"
 import { fileURLToPath } from "node:url"
+
 import { defineConfig } from "vite"
 
 const projectRoot = resolve(fileURLToPath(new URL(".", import.meta.url)))
