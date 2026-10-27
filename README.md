@@ -9,23 +9,23 @@ FactoryShark grew out of using Fishery for Sequelize tests. We wanted better han
 Install FactoryShark as a development dependency for test factories:
 
 ```sh
-npm install --save-dev factory-shark@1.1.0
+npm install --save-dev factory-shark@2.0.0
 ```
 
 If you use it outside tests, install it as a runtime dependency instead. `create()` writes real database records, so use isolated test persistence and never point test factories at production data.
 
-FactoryShark supports Node.js 22 and 24 and ships CommonJS code with TypeScript declarations. Use TypeScript's Node16 module resolution and `esModuleInterop`, or CommonJS `require("factory-shark").FactoryShark`. Your application supplies Sequelize and a matching dialect.
+FactoryShark supports Node.js 22 and 24. Native ESM and CommonJS bundles include matching TypeScript declarations. Use TypeScript's Node16 or NodeNext module resolution; default and named `FactoryShark` imports are supported, as is `require("factory-shark").FactoryShark`. Your application supplies Sequelize and a matching dialect.
 
 The supported model convention uses `id` as the primary key. Custom primary-key names and associations other than `belongsTo` are not supported.
 
-### Choose Your Sequelize Integration
+### Supported Sequelize Versions
 
-| Sequelize API          | Verified release | Import                       |
-| ---------------------- | ---------------- | ---------------------------- |
-| v6 (`sequelize`)       | `6.37.8`         | `factory-shark/sequelize-v6` |
-| v7 (`@sequelize/core`) | `7.0.0-alpha.48` | `factory-shark`              |
+| Sequelize API          | Verified release |
+| ---------------------- | ---------------- |
+| v6 (`sequelize`)       | `6.37.8`         |
+| v7 (`@sequelize/core`) | `7.0.0-alpha.48` |
 
-Import `FactoryShark` and its factory types from the entry point for your Sequelize version. Sequelize 7 also supports the explicit `factory-shark/sequelize-v7` entry point. The examples below use the Sequelize 7 root entry point. Your application supplies its ORM and matching dialect, and does not need the other ORM package installed.
+Import `FactoryShark` and its factory types from `factory-shark` for either ORM. The supplied model selects its Sequelize integration. Your application supplies its ORM and matching dialect, and does not need the other ORM package installed. The examples below use Sequelize 7.
 
 See [Sequelize compatibility](docs/architecture/sequelize-compatibility.md) for supported ranges and how new versions are qualified. See the [changelog](CHANGELOG.md) for release history.
 
