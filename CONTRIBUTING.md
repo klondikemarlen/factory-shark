@@ -2,6 +2,8 @@
 
 Before making changes, consult the [project knowledge base](docs/README.md). Update the owning document when verified behavior, decisions, or QA knowledge changes; keep transient run reports in the issue or pull request.
 
+The main README documents the latest published npm release. Keep its installation commands, import paths, module formats, and examples aligned with that artifact. Keep release-pending capabilities in the changelog and maintainer documentation until publication; do not preview them in the README, even with an "Unreleased" qualifier. Update the README as part of the corresponding release.
+
 ## Setup and Checks
 
 Use a current Node.js 22 or 24 release and npm 11.12.1 for development checks. No Docker, application checkout, environment variables, external database, or private fixtures are needed. CI pins the same npm version because npm 10.9.9 crashes in peer-dependency resolution for the consumer's Vitest toolchain; the library's Node/Sequelize runtime contract is unchanged.

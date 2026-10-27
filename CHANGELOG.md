@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Keep README installation and compatibility guidance aligned with the published package rather than source-only capabilities.
 - Use the MIT License and remove repetitive source headers and the standalone notice file.
 - Configure finite TypeScript runtime verification through the existing factory scenarios and typecheck, without disabling the check or duplicating compiler commands.
 - Use repository-root `@/` imports throughout library and test sources, with matching compiler, test-runner, and bundler resolution.
