@@ -3,7 +3,7 @@
 Use this folder to understand FactoryShark's design and maintain its behavior. For installation and everyday factory usage, start with the [README](/README.md). Development and release commands live in [CONTRIBUTING.md](/CONTRIBUTING.md).
 
 - [Factory evaluation](/docs/architecture/factory-evaluation.md): generation, association persistence, parameter precedence, hooks, and ownership boundaries.
-- [Sequelize compatibility](/docs/architecture/sequelize-compatibility.md): choosing an integration, tested versions, and qualifying future releases without duplicating the factory engine.
+- [Sequelize compatibility](/docs/architecture/sequelize-compatibility.md): model-driven integration, tested versions, and qualifying future releases without duplicating the factory engine.
 - [Why a Sequelize-specific factory](/docs/decisions/sequelize-factory-design.md): the problem behind the design, the familiar Fishery interface, and the name.
 - [Consumer verification](/docs/qa-scenarios/package-consumer.md): what the isolated scenarios and installed-package smoke prove.
 
