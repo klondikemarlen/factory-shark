@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
 
-import type { ModelStatic } from "sequelize"
+import type { InferCreationAttributes, ModelStatic } from "sequelize"
 
 import { createFixture } from "@/tests/support.js"
 import { createSequelizeV6Fixture } from "@/tests/sequelize-v6-support.js"
@@ -58,6 +58,69 @@ test("when build is called, it returns an unsaved Sequelize 6 model", async () =
 
     // Assert
     assert.equal(project.isNewRecord, true)
+  })
+})
+
+test("when attributesFor receives a Sequelize 6 Date, it preserves the Date value", async () => {
+  // Arrange
+  await withFixture(async ({ organizationFactory }) => {
+    const observedAt = new Date("2026-11-09T12:34:56.789Z")
+
+    // Act
+    const attributes = organizationFactory.attributesFor({ observedAt })
+
+    // Assert
+    assert.deepEqual(attributes.observedAt, observedAt)
+  })
+})
+
+test("when attributesFor receives Sequelize 6 binary data, it preserves bytes without invoking the custom getter", async () => {
+  // Arrange
+  await withFixture(async ({ organizationFactory }) => {
+    const payload = Buffer.from([0, 127, 128, 255, 195, 40])
+
+    // Act
+    const attributes = organizationFactory.attributesFor({ payload })
+
+    // Assert
+    assert.deepEqual(attributes.payload, payload)
+  })
+})
+
+test("when attributesFor evaluates Sequelize 6 associations, it does not persist the parent", async () => {
+  // Arrange
+  await withFixture(async ({ projectFactory, Project }) => {
+    // Act
+    projectFactory.attributesFor()
+
+    // Assert
+    const projectCount = await Project.count()
+    assert.equal(projectCount, 0)
+  })
+})
+
+test("when attributesFor evaluates Sequelize 6 associations, it does not persist their organizations", async () => {
+  // Arrange
+  await withFixture(async ({ projectFactory, Organization }) => {
+    // Act
+    projectFactory.attributesFor()
+
+    // Assert
+    const organizationCount = await Organization.count()
+    assert.equal(organizationCount, 0)
+  })
+})
+
+test("when attributesFor receives a Sequelize 6 foreign key, model-property association placeholders are excluded", async () => {
+  // Arrange
+  await withFixture(async ({ projectFactory }) => {
+    const organizationId = 42
+
+    // Act
+    const attributes = projectFactory.attributesFor({ organizationId })
+
+    // Assert
+    assert.equal("organization" in attributes, false)
   })
 })
 
@@ -369,6 +432,38 @@ export function checkSequelizeV6FactoryTypes({ Project, Organization }: Sequeliz
   void directList
   void configuredList
   void contractList
+
+  const directAttributes: InferCreationAttributes<ProjectRecord> = projectFactory.attributesFor({
+    nullableNote: null,
+    metadata: {
+      source: "typed attributes",
+    },
+  })
+  const configuredAttributes: InferCreationAttributes<ProjectRecord> =
+    configuredFactory.attributesFor()
+  const contractAttributes: InferCreationAttributes<ProjectRecord> = factoryContract.attributesFor()
+  const attributeTitle: string = configuredFactory.attributesFor().title
+  void directAttributes
+  void configuredAttributes
+  void contractAttributes
+  void attributeTitle
+
+  const attributesForProject = (factory: FactoryInterface<ProjectRecord>) => factory.attributesFor()
+  const helperAttributes: InferCreationAttributes<ProjectRecord> =
+    attributesForProject(configuredFactory)
+  void helperAttributes
+
+  // @ts-expect-error Attribute overrides reject unknown keys.
+  projectFactory.attributesFor({ unknownAttribute: true })
+
+  // @ts-expect-error Configured attribute overrides preserve non-nullable types.
+  configuredFactory.attributesFor({ title: null })
+
+  // @ts-expect-error Attribute association overrides require a model instance.
+  configuredFactory.attributesFor({ organization: "not an organization" })
+
+  // @ts-expect-error Attribute results are not model instances.
+  projectFactory.attributesFor().save()
 
   // @ts-expect-error List counts must be numbers.
   projectFactory.createList("2")

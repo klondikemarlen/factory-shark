@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import { test } from "node:test"
 
 import isUndefined from "lodash/isUndefined.js"
+import type { InferCreationAttributes } from "@sequelize/core"
 
 import { createFixture } from "@/tests/support.js"
 import type { Fixture, OrganizationRecord, ProjectRecord } from "@/tests/support.js"
@@ -13,6 +14,7 @@ import {
   FactoryContext,
   FactoryShark,
 } from "@/src/index.js"
+import type { FactoryInterface } from "@/src/index.js"
 
 type FixtureScenario = (fixture: Fixture) => Promise<void>
 
@@ -42,6 +44,197 @@ test("when build is called, it returns an unsaved model", async () => {
 
     // Assert
     assert.equal(project.isNewRecord, true)
+  })
+})
+
+test("when attributesFor receives a Date, it preserves the Date value", async () => {
+  // Arrange
+  await withFixture(async ({ organizationFactory }) => {
+    const observedAt = new Date("2026-11-09T12:34:56.789Z")
+
+    // Act
+    const attributes = organizationFactory.attributesFor({ observedAt })
+
+    // Assert
+    assert.deepEqual(attributes.observedAt, observedAt)
+  })
+})
+
+test("when attributesFor receives binary data, it preserves bytes without invoking the custom getter", async () => {
+  // Arrange
+  await withFixture(async ({ organizationFactory }) => {
+    const payload = Buffer.from([0, 127, 128, 255, 195, 40])
+
+    // Act
+    const attributes = organizationFactory.attributesFor({ payload })
+
+    // Assert
+    assert.deepEqual(attributes.payload, payload)
+  })
+})
+
+test("when attributesFor follows build and precedes create, each operation evaluates the same sequence once", async () => {
+  // Arrange
+  await withFixture(async ({ Organization }) => {
+    const evaluatedSequences: number[] = []
+    const organizationFactory = FactoryShark.define(Organization, ({ sequence }) => {
+      evaluatedSequences.push(sequence)
+
+      return {
+        name: `Organization ${sequence}`,
+      }
+    })
+
+    // Act
+    organizationFactory.build()
+    organizationFactory.attributesFor()
+    await organizationFactory.create()
+
+    // Assert
+    assert.deepEqual(evaluatedSequences, [1, 2, 3])
+  })
+})
+
+test("when attributesFor uses a configured factory, its sequence is shared with its own build and create calls", async () => {
+  // Arrange
+  await withFixture(async ({ Organization }) => {
+    const organizationFactory = FactoryShark.define(Organization, ({ sequence }) => ({
+      name: `Organization ${sequence}`,
+    }))
+    organizationFactory.build()
+    const configuredFactory = organizationFactory.params({})
+
+    // Act
+    const first = configuredFactory.attributesFor()
+    const second = configuredFactory.build()
+    const third = await configuredFactory.create()
+    const source = organizationFactory.attributesFor()
+
+    // Assert
+    assert.deepEqual(
+      [first.name, second.name, third.name, source.name],
+      ["Organization 1", "Organization 2", "Organization 3", "Organization 2"]
+    )
+  })
+})
+
+test("when attributesFor uses transient and parameter defaults, call parameters retain precedence", async () => {
+  // Arrange
+  await withFixture(async ({ Project }) => {
+    const projectFactory = FactoryShark.define<ProjectRecord, ProjectOptions>(
+      Project,
+      ({ transient, params }) => ({
+        title: `${transient.prefix}${params.title}`,
+      })
+    )
+    const configuredFactory = projectFactory
+      .transient({ prefix: "Generated " })
+      .params({ title: "Configured" })
+    const params = {
+      title: "Call override",
+    }
+
+    // Act
+    const attributes = configuredFactory.attributesFor(params)
+
+    // Assert
+    assert.equal(attributes.title, "Call override")
+  })
+})
+
+test("when attributesFor registers create hooks, neither configured nor generator hooks run", async () => {
+  // Arrange
+  await withFixture(async ({ Organization }) => {
+    const hookEvents: string[] = []
+    const organizationFactory = FactoryShark.define(
+      Organization,
+      ({ beforeCreate, afterCreate }) => {
+        beforeCreate(() => {
+          hookEvents.push("generator before")
+        })
+        afterCreate(async () => {
+          hookEvents.push("generator after")
+        })
+
+        return {
+          name: "Unsaved organization",
+        }
+      }
+    )
+    const configuredFactory = organizationFactory
+      .beforeCreate(() => {
+        hookEvents.push("configured before")
+      })
+      .afterCreate(async () => {
+        hookEvents.push("configured after")
+      })
+
+    // Act
+    configuredFactory.attributesFor()
+
+    // Assert
+    assert.deepEqual(hookEvents, [])
+  })
+})
+
+test("when attributesFor evaluates associations, it does not persist the parent", async () => {
+  // Arrange
+  await withFixture(async ({ projectFactory, Project }) => {
+    // Act
+    projectFactory.attributesFor()
+
+    // Assert
+    const projectCount = await Project.count()
+    assert.equal(projectCount, 0)
+  })
+})
+
+test("when attributesFor evaluates associations, it does not persist their organizations", async () => {
+  // Arrange
+  await withFixture(async ({ projectFactory, Organization }) => {
+    // Act
+    projectFactory.attributesFor()
+
+    // Assert
+    const organizationCount = await Organization.count()
+    assert.equal(organizationCount, 0)
+  })
+})
+
+test("when attributesFor generates unsaved associations, it does not invent their foreign keys", async () => {
+  // Arrange
+  await withFixture(async ({ projectFactory }) => {
+    // Act
+    const attributes = projectFactory.attributesFor()
+
+    // Assert
+    assert.equal(attributes.organizationId, undefined)
+  })
+})
+
+test("when attributesFor receives an explicit foreign key, it retains the scalar value", async () => {
+  // Arrange
+  await withFixture(async ({ projectFactory }) => {
+    const organizationId = 42
+
+    // Act
+    const attributes = projectFactory.attributesFor({ organizationId })
+
+    // Assert
+    assert.equal(attributes.organizationId, organizationId)
+  })
+})
+
+test("when attributesFor receives a foreign key, model-property association placeholders are excluded", async () => {
+  // Arrange
+  await withFixture(async ({ projectFactory }) => {
+    const organizationId = 42
+
+    // Act
+    const attributes = projectFactory.attributesFor({ organizationId })
+
+    // Assert
+    assert.equal("organization" in attributes, false)
   })
 })
 
@@ -836,6 +1029,36 @@ export function checkFactoryTypes({ Project, User, organizationFactory }: Fixtur
   const configuredList: Promise<ProjectRecord[]> = configuredFactory.createList(2)
   void directList
   void configuredList
+
+  const directAttributes: InferCreationAttributes<ProjectRecord> = projectFactory.attributesFor({
+    organizationId: 1,
+  })
+  const configuredAttributes: InferCreationAttributes<ProjectRecord> =
+    configuredFactory.attributesFor({ title: "Typed attributes" })
+  const contractFactory: FactoryInterface<ProjectRecord> = projectFactory
+  const contractAttributes: InferCreationAttributes<ProjectRecord> = contractFactory.attributesFor()
+  const attributeTitle: string = configuredFactory.attributesFor().title
+  void directAttributes
+  void configuredAttributes
+  void contractAttributes
+  void attributeTitle
+
+  const attributesForProject = (factory: FactoryInterface<ProjectRecord>) => factory.attributesFor()
+  const helperAttributes: InferCreationAttributes<ProjectRecord> =
+    attributesForProject(configuredFactory)
+  void helperAttributes
+
+  // @ts-expect-error Attribute overrides reject unknown keys.
+  projectFactory.attributesFor({ unknown: true })
+
+  // @ts-expect-error Configured attribute overrides preserve field types.
+  configuredFactory.attributesFor({ title: 42 })
+
+  // @ts-expect-error Attribute association overrides require a model instance.
+  configuredFactory.attributesFor({ organization: "not an organization" })
+
+  // @ts-expect-error Attribute results are not model instances.
+  projectFactory.attributesFor().save()
 
   // @ts-expect-error List counts must be numbers.
   projectFactory.createList("2")

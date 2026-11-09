@@ -6,6 +6,7 @@ import type { FactoryAdapter, FactoryAssociation } from "@/src/orm-adapter.js"
 
 export type SequelizeModelProtocol = {
   _creationAttributes: object
+  dataValues: object
   isNewRecord: boolean
   save(): Promise<unknown>
   get(key?: string): unknown
@@ -111,6 +112,9 @@ export function createSequelizeAdapter<
     build(modelClass, attributes) {
       resolveSupportedVersion(modelClass)
       return getStatic(modelClass).build(attributes)
+    },
+    rawAttributes(model) {
+      return getInstance(model).dataValues as Attributes
     },
     save(model) {
       return CreateStrategy.save(model as T & SequelizeModelProtocol)

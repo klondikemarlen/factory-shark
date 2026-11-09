@@ -38,6 +38,11 @@ export class FactoryBuilder<
     return model
   }
 
+  attributesFor(params?: CoreFactoryParams<T, Attributes>): Attributes {
+    const model = this.build(params)
+    return this.adapter.rawAttributes(model)
+  }
+
   async create(params?: CoreFactoryParams<T, Attributes>): Promise<T> {
     const { attributeBuilder, associationManager } = this.createEvaluator(params)
 

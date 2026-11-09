@@ -1,5 +1,6 @@
 export type FactoryAdapter<T extends object, Attributes extends object, ModelClass> = {
   build(modelClass: ModelClass, attributes: Attributes): T
+  rawAttributes(model: T): Attributes
   save(model: T): Promise<T>
   isModel(value: unknown): value is object
   set(model: object, key: string, value: unknown): void
