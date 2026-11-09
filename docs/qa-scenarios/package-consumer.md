@@ -8,6 +8,8 @@ FactoryShark needs two kinds of evidence: isolated scenarios for factory behavio
 
 List scenarios cover persisted configured relationships, sequence continuity and clone isolation, zero-count side effects, sequential hooks with transient configuration, call-time overrides, and stopping on failure without rolling back earlier writes. Installed consumers exercise `createList` on both root and configured factories through both module/declaration branches; compile-only cases preserve model-specific list returns and reject invalid overrides.
 
+Attribute extraction scenarios cover raw unsaved values, Date and Buffer preservation, configured precedence, sequence continuity, and the absence of create hooks and persistence. Installed Sequelize 6 and 7 consumers exercise `attributesFor` through both module/declaration branches, including configured factory helpers and rejected invalid overrides.
+
 The [v7 SQLite fixture](/tests/support.ts) creates fresh model subclasses for each scenario. Sequelize 7 binds an initialized model class to one database instance; closing that database does not make the class reusable for another initialization. Preserve isolated model classes and databases when adding scenarios for either integration.
 
 ## Installed Package and README

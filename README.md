@@ -9,7 +9,7 @@ FactoryShark grew out of using Fishery for Sequelize tests. We wanted better han
 Install FactoryShark as a development dependency for test factories:
 
 ```sh
-npm install --save-dev factory-shark@2.1.0
+npm install --save-dev factory-shark@2.2.0
 ```
 
 If you use it outside tests, install it as a runtime dependency instead. `create()` writes real database records, so use isolated test persistence and never point test factories at production data.
@@ -173,6 +173,28 @@ describe("factories/workflow-factory.ts", () => {
       })
     })
 
+    describe("#attributesFor", () => {
+      test("when supplied a foreign key, returns unsaved request attributes", () => {
+        // Arrange
+        const configuredFactory = workflowFactory.params({
+          title: "Budget review",
+        })
+
+        // Act
+        const attributes = configuredFactory.attributesFor({
+          organizationId: 42,
+        })
+
+        // Assert
+        expect(attributes).toEqual(
+          expect.objectContaining({
+            title: "Budget review",
+            organizationId: 42,
+          })
+        )
+      })
+    })
+
     describe("#create", () => {
       test("when provided attributes, persists the workflow", async () => {
         // Arrange
@@ -295,15 +317,17 @@ For `create()`, pass `{ organizationId: existing.id }`, `{ organization: existin
 
 Without a foreign-key override, `build()` creates unsaved association instances and does not write to the database. It does not reuse a supplied association instance in this case.
 
+`attributesFor(params?)` synchronously returns the raw attribute object from one `build(params)` evaluation on an original or configured factory. It preserves Date values and Buffer bytes, performs no persistence, and runs no create hooks or custom attribute getters. Explicit foreign keys remain in the result; generated associations and `{ id }` placeholders attached as model properties are not copied, and unsaved associations do not supply persisted foreign keys. Use explicit foreign-key overrides for request payloads. This is not a recursive JSON serializer; select the fields accepted by your API.
+
 Parameter precedence, from lowest to highest, is generator attributes, `.associations()` defaults, `.params()` defaults, and call-time parameters. Repeated `.params()` calls merge; repeated `.associations()` calls replace their defaults. `.transient()` merges generator-only parameters that are not database columns.
 
-Configuration methods return independent builders and do not mutate the original factory. Each new builder starts its own sequence at 1 and advances it on each `build()` or `create()` evaluation. The generator runs once per evaluation; associated factories have their own evaluations and sequences.
+Configuration methods return independent builders and do not mutate the original factory. Each new builder starts its own sequence at 1 and advances it on each `build()`, `attributesFor()`, or `create()` evaluation. The generator runs once per evaluation; associated factories have their own evaluations and sequences.
 
 `createList(count, params?)` returns a model-specific `Promise<T[]>` on original and configured factories. Supply a nonnegative integer count. Each item awaits the normal `create(params)` lifecycle on the same builder, retaining associations, transient settings, overrides, hooks, and sequence progression. Results preserve creation order, and later calls continue the sequence. A zero count returns `[]` without generation, hooks, or persistence. The first failure rejects the list and stops later items; earlier writes remain, with no new transaction guarantee.
 
 ## Hooks and Errors
 
-Register `beforeCreate` and `afterCreate` hooks in the generator, or chain `.beforeCreate()` and `.afterCreate()` on the factory. Chained hooks run before generator-registered hooks of the same kind. Hooks run sequentially and are awaited. Before-create hooks see resolved association foreign keys before the parent is saved; after-create hooks see the persisted parent. Hooks do not run for `build()`. Save any after-create changes explicitly if they must persist.
+Register `beforeCreate` and `afterCreate` hooks in the generator, or chain `.beforeCreate()` and `.afterCreate()` on the factory. Chained hooks run before generator-registered hooks of the same kind. Hooks run sequentially and are awaited. Before-create hooks see resolved association foreign keys before the parent is saved; after-create hooks see the persisted parent. Hooks do not run for `build()` or `attributesFor()`. Save any after-create changes explicitly if they must persist.
 
 Invalid association registrations raise `AssociationNotFoundError` or `ForeignKeyNotFoundError`. Invalid instance overrides and database validation or constraint failures propagate. FactoryShark does not wrap the complete association graph in a transaction. If creation fails, previously created associated records may remain; a parent saved before an after-create failure may also remain. Use disposable test persistence and clean it between scenarios.
 
