@@ -1,0 +1,5 @@
+advisors:
+  - name: verifier
+    tools: [bash]
+    instructions: |
+      Check id project:lint. When maintained JavaScript or TypeScript files, .oxlintrc.json, package.json, or package-lock.json change, run `npm run lint` from the repository root. The quality standard is that Oxlint's configured correctness and unused-binding rules pass across maintained source, tests, scripts, fixtures, and JavaScript configuration with zero warnings. PASS requires current command exit 0 and its lint output; lint diagnostics are FAIL, and missing tooling/configuration or an unexecuted check is BLOCKED. Formatting, type checking, and tests are separate evidence. Oxlint is the project's native TypeScript/JavaScript linter; do not substitute an ESLint-only discovery check for this executable requirement.

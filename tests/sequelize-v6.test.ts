@@ -304,7 +304,8 @@ export function checkSequelizeV6FactoryTypes({ Project, Organization }: Sequeliz
   factoryContext.associate<OrganizationRecord>("organization", organizationFactory)
   const registration = factoryContext.registrations[0]
   registration.instance.get("id")
-  registration.instance.isNewRecord
+  const isNewRecord: boolean = registration.instance.isNewRecord
+  void isNewRecord
   void registration.create({}).then((model) => model.get("id"))
 
   const validAssociationFactory = FactoryShark.define(Project, ({ associate }) => {
