@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Check maintained JavaScript and TypeScript with Oxlint correctness rules and zero allowed warnings in the development and CI gate.
+
 ## 2.0.0
 
 - **Breaking:** use one model-driven `factory-shark` API for Sequelize 6 and 7. Replace `factory-shark/sequelize-v6` and `factory-shark/sequelize-v7` imports with `factory-shark`; the versioned subpaths are no longer exported. Existing v7 root imports are unchanged.
