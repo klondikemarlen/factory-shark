@@ -5,6 +5,7 @@ export type FactoryInterface<
   TransientParams = Record<string, never>,
 > = {
   build(params?: CoreFactoryParams<T, Attributes>): T
+  attributesFor(params?: CoreFactoryParams<T, Attributes>): Attributes
   create(params?: CoreFactoryParams<T, Attributes>): Promise<T>
   createList(count: number, params?: CoreFactoryParams<T, Attributes>): Promise<T[]>
   associations<A extends object>(

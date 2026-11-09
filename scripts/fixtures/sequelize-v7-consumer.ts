@@ -29,6 +29,8 @@ class ProjectRecord extends Model<
   declare id: CreationOptional<number>
   declare title: string
   declare nullableNote: string | null
+  declare startedAt?: Date
+  declare payload?: Buffer
   declare metadata: {
     source: string
   }
@@ -81,6 +83,14 @@ async function verifyRootConsumer(): Promise<void> {
         },
         nullableNote: {
           type: DataTypes.STRING,
+          allowNull: true,
+        },
+        startedAt: {
+          type: DataTypes.DATE,
+          allowNull: true,
+        },
+        payload: {
+          type: DataTypes.BLOB,
           allowNull: true,
         },
         metadata: {
@@ -170,9 +180,59 @@ async function verifyRootConsumer(): Promise<void> {
         source: "list override",
       })
     }
+
+    const startedAt = new Date("2026-01-02T03:04:05.000Z")
+    const payload = Buffer.from([0, 128, 255])
+    const attributes = projectFactory.attributesFor({
+      startedAt,
+      payload,
+    })
+    assert.equal(attributes instanceof Project, false)
+    assert.equal(attributes.title, "Root Sequelize 7 consumer 5")
+    assert.ok(attributes.startedAt instanceof Date)
+    assert.equal(attributes.startedAt.getTime(), startedAt.getTime())
+    assert.ok(Buffer.isBuffer(attributes.payload))
+    assert.deepEqual(attributes.payload, payload)
+    assert.equal(projectFactory.build().title, "Root Sequelize 7 consumer 6")
+
+    const hookEvents: string[] = []
+
+    const projectWithNote = (note: string) => {
+      return projectFactory
+        .params({
+          nullableNote: note,
+        })
+        .associations({
+          organization: associatedOrganization,
+        })
+        .beforeCreate(() => {
+          hookEvents.push("before")
+        })
+        .afterCreate(async () => {
+          hookEvents.push("after")
+        })
+    }
+
+    const domainFactory = projectWithNote("Configured attributes")
+    const configuredAttributes = domainFactory.attributesFor({
+      organizationId: associatedOrganization.id,
+      metadata: {
+        source: "attributes override",
+      },
+    })
+    assert.equal(configuredAttributes.title, "Root Sequelize 7 consumer 1")
+    assert.equal(configuredAttributes.nullableNote, "Configured attributes")
+    assert.equal(configuredAttributes.organizationId, associatedOrganization.id)
+    assert.deepEqual(configuredAttributes.metadata, {
+      source: "attributes override",
+    })
+    assert.equal(domainFactory.build().title, "Root Sequelize 7 consumer 2")
+    assert.deepEqual(hookEvents, [])
     assert.equal(await Project.count(), 5)
     assert.equal(await Organization.count(), 3)
-    console.log("Packed Sequelize 7 consumer PASS: root and configured createList with belongsTo")
+    console.log(
+      "Packed Sequelize 7 consumer PASS: attributesFor, configured factories, createList, and belongsTo"
+    )
   } finally {
     await sequelize.close()
   }
@@ -235,6 +295,37 @@ function checkRootConsumerTypes(
   void configuredModelRows
   void chainedModelRows
   void factoryContract
+
+  const attributes = projectFactory.attributesFor({
+    nullableNote: null,
+  })
+  const attributeTitle: string = attributes.title
+  const attributeNote: string | null = attributes.nullableNote
+  const attributeSource: string = attributes.metadata.source
+  const configuredAttributes = factoryContract
+    .params({
+      title: "Configured attributes",
+    })
+    .beforeCreate(() => {})
+    .afterCreate(async () => {})
+    .attributesFor()
+  const configuredTitle: string = configuredAttributes.title
+  const defaultAttributes = defaultOrganizationFactory.attributesFor()
+  const defaultName: string = defaultAttributes.name
+  void attributeTitle
+  void attributeNote
+  void attributeSource
+  void configuredTitle
+  void defaultName
+
+  // @ts-expect-error Attributes are not model instances.
+  attributes.save()
+
+  // @ts-expect-error Attribute overrides reject unknown names.
+  projectFactory.attributesFor({ unknownAttribute: true })
+
+  // @ts-expect-error Attribute overrides preserve scalar types.
+  projectFactory.params({}).attributesFor({ title: 42 })
 
   const nullableParams: FactoryParams<ProjectRecord> = {
     nullableNote: null,

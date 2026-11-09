@@ -17,6 +17,8 @@ export class OrganizationRecord extends Model<
 > {
   declare id: CreationOptional<number>
   declare name: string
+  declare observedAt?: Date | null
+  declare payload?: Buffer | null
 }
 
 export class CategoryRecord extends Model<
@@ -81,6 +83,17 @@ export function createSequelizeV6Fixture(): SequelizeV6Fixture {
       name: {
         type: DataTypes.STRING,
         allowNull: false,
+      },
+      observedAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
+      payload: {
+        type: DataTypes.BLOB,
+        allowNull: true,
+        get() {
+          return Buffer.from("redacted")
+        },
       },
     },
     { sequelize }

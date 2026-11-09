@@ -18,6 +18,8 @@ Sequelize-specific model access belongs to the [compatibility layer](/docs/archi
 
 `build()` generates attributes, calls Sequelize's model builder, and attaches unsaved association instances. It performs no persistence and runs no create hooks. A supplied foreign key produces an `id` placeholder for that association. A supplied association instance without a foreign-key override is not reused in build mode.
 
+`attributesFor(params?)` returns the raw attribute object from one `build(params)` evaluation, typed with the model's creation-attribute shape. It preserves Date values and Buffer bytes without serialization or custom-getter evaluation. It performs no writes and runs no create hooks. Explicit foreign keys remain attributes; generated associations and `id` placeholders attached as model properties are not copied into the result, and unsaved associations do not generate persisted foreign keys. This is not a recursive JSON payload serializer; consumers choose the fields accepted by their API.
+
 `create()` evaluates the generator, resolves associations in registration order, builds the parent with resolved attributes, and attaches associations. It then awaits before-create hooks, saves the parent, and awaits after-create hooks. Chained hooks precede generator-registered hooks of the same kind. After-create changes need an explicit save when they must persist.
 
 `createList(count, params?)` returns `Promise<T[]>` on the original factory and configured builders. Supply a nonnegative integer count. It awaits `create(params)` on the same builder for each item, preserving configuration, override precedence, hooks, result order, and sequence progression across the list and later calls. Zero returns an empty array without evaluating generators, running hooks, or writing records. The first error rejects the list and prevents later items from starting; earlier persisted records remain. List creation adds no transaction or bulk-insert semantics.
@@ -30,7 +32,7 @@ Attribute precedence, from lowest to highest, is generated attributes, `.associa
 
 During creation, a foreign-key override takes precedence over a supplied association instance. FactoryShark loads the referenced record rather than creating another one. Without a foreign-key override, a supplied persisted model provides its ID; otherwise the associated factory creates the record and its ID fills the parent's foreign key.
 
-Configuration methods create independent builders. Each builder starts its own sequence at 1 and advances it once per build/create evaluation. Each associated factory has its own sequence. A generator runs once per evaluation even when both hook registration and attribute merging need its output.
+Configuration methods create independent builders. Each builder starts its own sequence at 1 and advances it once per build, attributesFor, or create evaluation. Each associated factory has its own sequence. A generator runs once per evaluation even when both hook registration and attribute merging need its output.
 
 ## Persistence Boundaries
 

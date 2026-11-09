@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.2.0
+
+- Extract unsaved model attributes with synchronous `attributesFor(params?)` on original and configured factories. It follows build precedence and sequences, preserves Date and Buffer values, and performs no persistence or create hooks.
+
 ## 2.1.0
 
 - Create persisted model lists with `createList(count, params?)` on original and configured factories, retaining associations, hooks, overrides, transient parameters, and sequence progression. Items are created sequentially; failures stop the list without rolling back earlier records.
