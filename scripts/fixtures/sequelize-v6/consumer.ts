@@ -38,6 +38,8 @@ class ProjectRecord extends Model<
   declare id: CreationOptional<number>
   declare title: string
   declare nullableNote: string | null
+  declare startedAt?: Date
+  declare payload?: Buffer
   declare metadata: {
     source: string
   }
@@ -120,6 +122,14 @@ function createFixture(): Fixture {
       },
       nullableNote: {
         type: DataTypes.STRING,
+        allowNull: true,
+      },
+      startedAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
+      payload: {
+        type: DataTypes.BLOB,
         allowNull: true,
       },
       metadata: {
@@ -245,11 +255,60 @@ async function verifyInstalledConsumer(): Promise<void> {
       assert.equal(persistedProject?.nullableNote, "Configured list")
       assert.equal(category?.organizationId, existingOrganization.id)
     }
+
+    const startedAt = new Date("2026-01-02T03:04:05.000Z")
+    const payload = Buffer.from([0, 128, 255])
+    const attributes = fixture.projectFactory.attributesFor({
+      startedAt,
+      payload,
+    })
+    assert.equal(attributes instanceof fixture.Project, false)
+    assert.equal(attributes.title, "Project 4")
+    assert.ok(attributes.startedAt instanceof Date)
+    assert.equal(attributes.startedAt.getTime(), startedAt.getTime())
+    assert.ok(Buffer.isBuffer(attributes.payload))
+    assert.deepEqual(attributes.payload, payload)
+    assert.equal(fixture.projectFactory.build().title, "Project 5")
+
+    const attributeHookEvents: string[] = []
+
+    const projectWithNote = (note: string) => {
+      return fixture.projectFactory
+        .params({
+          nullableNote: note,
+        })
+        .associations({
+          organization: existingOrganization,
+        })
+        .beforeCreate(() => {
+          attributeHookEvents.push("before")
+        })
+        .afterCreate(async () => {
+          attributeHookEvents.push("after")
+        })
+    }
+
+    const domainFactory = projectWithNote("Configured attributes")
+    const configuredAttributes = domainFactory.attributesFor({
+      organizationId: existingOrganization.id,
+      metadata: {
+        source: "attributes override",
+      },
+    })
+    assert.equal(configuredAttributes.title, "Project 1")
+    assert.equal(configuredAttributes.nullableNote, "Configured attributes")
+    assert.equal(configuredAttributes.organizationId, existingOrganization.id)
+    assert.deepEqual(configuredAttributes.metadata, {
+      source: "attributes override",
+    })
+    assert.equal(domainFactory.build().title, "Project 2")
+    assert.deepEqual(attributeHookEvents, [])
     assert.equal(await fixture.Project.count(), 5)
     assert.equal(await fixture.Organization.count(), 2)
+    assert.equal(await fixture.Category.count(), 5)
 
     console.log(
-      "Packed Sequelize 6 consumer PASS: build, createList, nested belongsTo, overrides, and hooks"
+      "Packed Sequelize 6 consumer PASS: attributesFor, configured factories, createList, nested belongsTo, and hooks"
     )
   } finally {
     await fixture.sequelize.close()
@@ -313,6 +372,37 @@ export function checkInstalledConsumerTypes(
   void factoryContract
   void directModelRows
   void configuredModelRows
+
+  const attributes = projectFactory.attributesFor({
+    nullableNote: null,
+  })
+  const attributeTitle: string = attributes.title
+  const attributeNote: string | null = attributes.nullableNote
+  const attributeSource: string = attributes.metadata.source
+  const configuredAttributes = factoryContract
+    .params({
+      title: "Configured attributes",
+    })
+    .beforeCreate(() => {})
+    .afterCreate(async () => {})
+    .attributesFor()
+  const configuredTitle: string = configuredAttributes.title
+  const defaultAttributes = defaultProjectFactory.attributesFor()
+  const defaultTitle: string = defaultAttributes.title
+  void attributeTitle
+  void attributeNote
+  void attributeSource
+  void configuredTitle
+  void defaultTitle
+
+  // @ts-expect-error Attributes are not model instances.
+  attributes.displayTitle()
+
+  // @ts-expect-error Attribute overrides reject unknown names.
+  projectFactory.attributesFor({ unknownAttribute: true })
+
+  // @ts-expect-error Attribute overrides preserve scalar types.
+  projectFactory.params({}).attributesFor({ title: 42 })
 
   const organizationFactory = FactoryShark.define(Organization, ({ sequence }) => ({
     name: `Typed organization ${sequence}`,
