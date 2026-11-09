@@ -217,19 +217,40 @@ async function verifyInstalledConsumer(): Promise<void> {
     ])
 
     const existingOrganization = await fixture.organizationFactory.create()
-    await fixture.projectFactory.create({
+    const projects = await fixture.projectFactory.createList(2, {
       organizationId: existingOrganization.id,
     })
+    assert.deepEqual(
+      projects.map((project) => project.displayTitle()),
+      ["Project 2", "Project 3"]
+    )
     assert.equal(await fixture.Organization.count(), 2)
 
-    const associatedFactory = fixture.projectFactory.associations({
-      organization: existingOrganization,
-    })
-    const associatedProject = await associatedFactory.create()
-    assert.equal(associatedProject.organizationId, existingOrganization.id)
+    const associatedFactory = fixture.projectFactory
+      .associations({
+        organization: existingOrganization,
+      })
+      .params({
+        nullableNote: "Configured list",
+      })
+    const associatedProjects = await associatedFactory.createList(2)
+    assert.deepEqual(
+      associatedProjects.map((project) => project.displayTitle()),
+      ["Project 1", "Project 2"]
+    )
+    for (const project of associatedProjects) {
+      const persistedProject = await fixture.Project.findByPk(project.id)
+      const category = await fixture.Category.findByPk(project.categoryId)
+      assert.equal(persistedProject?.organizationId, existingOrganization.id)
+      assert.equal(persistedProject?.nullableNote, "Configured list")
+      assert.equal(category?.organizationId, existingOrganization.id)
+    }
+    assert.equal(await fixture.Project.count(), 5)
     assert.equal(await fixture.Organization.count(), 2)
 
-    console.log("Packed Sequelize 6 consumer PASS: build, nested belongsTo, overrides, and hooks")
+    console.log(
+      "Packed Sequelize 6 consumer PASS: build, createList, nested belongsTo, overrides, and hooks"
+    )
   } finally {
     await fixture.sequelize.close()
   }
@@ -273,6 +294,19 @@ export function checkInstalledConsumerTypes(
     }
   ).modelClass
   const factoryContract: FactoryInterface<ConcreteProjectRecord> = projectFactory
+  const createdProjects: Promise<ConcreteProjectRecord[]> = projectFactory.createList(2, {
+    nullableNote: null,
+  })
+  const configuredProjects: Promise<ConcreteProjectRecord[]> = factoryContract
+    .params({
+      title: "Configured list project",
+    })
+    .createList(2)
+  const createdTitle: Promise<string> = createdProjects.then((projects) =>
+    projects[0].displayTitle()
+  )
+  void configuredProjects
+  void createdTitle
   void project
   void modelClass
   void chainedModelClass
@@ -327,6 +361,9 @@ export function checkInstalledConsumerTypes(
 
   // @ts-expect-error Unknown factory parameter keys are rejected.
   projectFactory.create({ unknownAttribute: true })
+
+  // @ts-expect-error List parameters reject unknown factory parameter keys.
+  projectFactory.createList(2, { unknownAttribute: true })
 
   const nullableParams: FactoryParams<ConcreteProjectRecord> = {
     nullableNote: null,
