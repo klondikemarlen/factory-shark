@@ -163,6 +163,263 @@ test("when create evaluates associations, it persists the user", async () => {
   })
 })
 
+test("when createList is called, it persists the requested projects", async () => {
+  // Arrange
+  await withFixture(async ({ projectFactory, Project }) => {
+    const count = 3
+
+    // Act
+    await projectFactory.createList(count)
+
+    // Assert
+    const persistedProjects = await Project.findAll({
+      attributes: ["title"],
+      order: [["id", "ASC"]],
+      raw: true,
+    })
+    assert.deepEqual(persistedProjects, [
+      { title: "Project 1" },
+      { title: "Project 2" },
+      { title: "Project 3" },
+    ])
+  })
+})
+
+test("when createList has a configured persisted organization, every project retains its relationship", async () => {
+  // Arrange
+  await withFixture(async ({ organizationFactory, projectFactory, Project }) => {
+    const organization = await organizationFactory.create()
+    const configuredFactory = projectFactory.associations({
+      organization,
+    })
+
+    // Act
+    await configuredFactory.createList(2)
+
+    // Assert
+    const projects = await Project.findAll({
+      attributes: ["organizationId"],
+      raw: true,
+    })
+    assert.deepEqual(projects, [
+      { organizationId: organization.id },
+      { organizationId: organization.id },
+    ])
+  })
+})
+
+test("when createList has a configured persisted organization, it does not replace that organization", async () => {
+  // Arrange
+  await withFixture(async ({ organizationFactory, projectFactory, Organization }) => {
+    const organization = await organizationFactory.create()
+    const configuredFactory = projectFactory.associations({
+      organization,
+    })
+
+    // Act
+    await configuredFactory.createList(2)
+
+    // Assert
+    const organizationCount = await Organization.count()
+    assert.equal(organizationCount, 1)
+  })
+})
+
+test("when create follows createList, the same factory sequence continues in order", async () => {
+  // Arrange
+  await withFixture(async ({ organizationFactory }) => {
+    const count = 3
+
+    // Act
+    const organizations = await organizationFactory.createList(count)
+    const nextOrganization = await organizationFactory.create()
+
+    // Assert
+    assert.deepEqual(
+      [...organizations, nextOrganization].map((organization) => organization.name),
+      ["Organization 1", "Organization 2", "Organization 3", "Organization 4"]
+    )
+  })
+})
+
+test("when a configured clone creates a list, the original factory sequence remains independent", async () => {
+  // Arrange
+  await withFixture(async ({ organizationFactory }) => {
+    const configuredFactory = organizationFactory.params({})
+
+    // Act
+    await configuredFactory.createList(2)
+    const organization = await organizationFactory.create()
+
+    // Assert
+    assert.equal(organization.name, "Organization 1")
+  })
+})
+
+test("when createList receives zero, it returns an empty list", async () => {
+  // Arrange
+  await withFixture(async ({ projectFactory }) => {
+    const count = 0
+
+    // Act
+    const projects = await projectFactory.createList(count)
+
+    // Assert
+    assert.deepEqual(projects, [])
+  })
+})
+
+test("when createList receives zero, it does not evaluate or advance the generator", async () => {
+  // Arrange
+  await withFixture(async ({ Organization }) => {
+    const evaluatedSequences: number[] = []
+    const organizationFactory = FactoryShark.define(Organization, ({ sequence }) => {
+      evaluatedSequences.push(sequence)
+
+      return {
+        name: `Organization ${sequence}`,
+      }
+    })
+
+    // Act
+    await organizationFactory.createList(0)
+    await organizationFactory.create()
+
+    // Assert
+    assert.deepEqual(evaluatedSequences, [1])
+  })
+})
+
+test("when createList receives zero, it runs no create hooks", async () => {
+  // Arrange
+  await withFixture(async ({ projectFactory }) => {
+    const hookEvents: string[] = []
+    const observedFactory = projectFactory
+      .beforeCreate(() => {
+        hookEvents.push("before")
+      })
+      .afterCreate(async () => {
+        hookEvents.push("after")
+      })
+
+    // Act
+    await observedFactory.createList(0)
+
+    // Assert
+    assert.deepEqual(hookEvents, [])
+  })
+})
+
+test("when createList receives zero, it persists no association records", async () => {
+  // Arrange
+  await withFixture(async ({ projectFactory, Organization }) => {
+    const count = 0
+
+    // Act
+    await projectFactory.createList(count)
+
+    // Assert
+    const organizationCount = await Organization.count()
+    assert.equal(organizationCount, 0)
+  })
+})
+
+test("when a list item hook rejects, createList propagates the same error", async () => {
+  // Arrange
+  await withFixture(async ({ organizationFactory }) => {
+    const hookError = new Error("second item failed")
+    const failingFactory = organizationFactory.beforeCreate((organization) => {
+      if (organization.name === "Organization 2") throw hookError
+    })
+
+    // Act / Assert
+    await assert.rejects(failingFactory.createList(3), (error) => error === hookError)
+  })
+})
+
+test("when a list item hook rejects, earlier items remain persisted and later items are not created", async () => {
+  // Arrange
+  await withFixture(async ({ organizationFactory, Organization }) => {
+    const hookError = new Error("second item failed")
+    const failingFactory = organizationFactory.beforeCreate((organization) => {
+      if (organization.name === "Organization 2") throw hookError
+    })
+
+    // Act
+    try {
+      await failingFactory.createList(3)
+    } catch (error) {
+      if (error !== hookError) throw error
+    }
+
+    // Assert
+    const organizations = await Organization.findAll({
+      attributes: ["name"],
+      raw: true,
+    })
+    assert.deepEqual(organizations, [{ name: "Organization 1" }])
+  })
+})
+
+test("when createList uses transient configuration, each item completes its async hooks before the next", async () => {
+  // Arrange
+  await withFixture(async ({ Organization }) => {
+    const hookEvents: string[] = []
+    const organizationFactory = FactoryShark.define<OrganizationRecord, ProjectOptions>(
+      Organization,
+      ({ sequence, transient, beforeCreate, afterCreate }) => {
+        beforeCreate(async (organization) => {
+          await Promise.resolve()
+          hookEvents.push(`before:${organization.name}:${organization.isNewRecord}`)
+        })
+        afterCreate(async (organization) => {
+          await Promise.resolve()
+          hookEvents.push(`after:${organization.name}:${organization.isNewRecord}`)
+        })
+
+        return {
+          name: `${transient.prefix}${sequence}`,
+        }
+      }
+    ).transient({
+      prefix: "Team ",
+    })
+
+    // Act
+    await organizationFactory.createList(2)
+
+    // Assert
+    assert.deepEqual(hookEvents, [
+      "before:Team 1:true",
+      "after:Team 1:false",
+      "before:Team 2:true",
+      "after:Team 2:false",
+    ])
+  })
+})
+
+test("when createList call parameters conflict with defaults, every persisted item uses the call override", async () => {
+  // Arrange
+  await withFixture(async ({ projectFactory, Project }) => {
+    const configuredFactory = projectFactory.params({
+      title: "Factory default",
+    })
+    const params = {
+      title: "Call override",
+    }
+
+    // Act
+    await configuredFactory.createList(2, params)
+
+    // Assert
+    const projects = await Project.findAll({
+      attributes: ["title"],
+      raw: true,
+    })
+    assert.deepEqual(projects, [{ title: "Call override" }, { title: "Call override" }])
+  })
+})
+
 test("when a foreign key is supplied, create assigns it to the parent", async () => {
   // Arrange
   await withFixture(async ({ organizationFactory, projectFactory }) => {
@@ -568,6 +825,32 @@ export function checkFactoryTypes({ Project, User, organizationFactory }: Fixtur
     .modelClass.findAll()
   void directModelRows
   void configuredModelRows
+
+  const directList: Promise<ProjectRecord[]> = projectFactory.createList(2, {
+    title: "Typed list",
+    organizationId: 1,
+  })
+  const configuredFactory = projectFactory.params({
+    title: "Configured list",
+  })
+  const configuredList: Promise<ProjectRecord[]> = configuredFactory.createList(2)
+  void directList
+  void configuredList
+
+  // @ts-expect-error List counts must be numbers.
+  projectFactory.createList("2")
+
+  // @ts-expect-error Lists require a count.
+  projectFactory.createList()
+
+  // @ts-expect-error List parameters reject unknown attribute names.
+  projectFactory.createList(2, { unknown: true })
+
+  // @ts-expect-error Configured list parameters preserve attribute types.
+  configuredFactory.createList(2, { title: 42 })
+
+  // @ts-expect-error List association parameters require a model instance.
+  configuredFactory.createList(2, { organization: "not an organization" })
 
   const factoryContext = new FactoryContext(Project)
   factoryContext.associate<OrganizationRecord>("organization", organizationFactory)

@@ -50,6 +50,7 @@ export type FactoryInterface<
 > = {
   build(params?: FactoryParams<T>): T
   create(params?: FactoryParams<T>): Promise<T>
+  createList(count: number, params?: FactoryParams<T>): Promise<T[]>
   associations<A extends Model>(
     associations: Record<string, A>
   ): FactoryInterface<T, TransientParams, ModelClass>
@@ -143,6 +144,10 @@ export class FactoryShark<
 
   async create(params?: FactoryParams<T>): Promise<T> {
     return this.builder.create(params)
+  }
+
+  async createList(count: number, params?: FactoryParams<T>): Promise<T[]> {
+    return this.builder.createList(count, params)
   }
 
   associations<A extends Model>(

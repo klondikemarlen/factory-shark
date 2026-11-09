@@ -1,6 +1,6 @@
 {
   "name": "factory-shark",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "TypeScript test factories for Sequelize with declarative associations",
   "license": "MIT",
   "author": "Marlen",

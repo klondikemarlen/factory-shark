@@ -101,14 +101,14 @@ async function verifyRootConsumer(): Promise<void> {
       foreignKey: "organizationId",
     })
 
-    const organizationFactory = FactorySharkDefault.define(Organization, () => ({
-      name: "Packed organization",
+    const organizationFactory = FactorySharkDefault.define(Organization, ({ sequence }) => ({
+      name: `Packed organization ${sequence}`,
     }))
-    const projectFactory = FactoryShark.define(Project, ({ associate }) => {
+    const projectFactory = FactoryShark.define(Project, ({ sequence, associate }) => {
       associate<OrganizationRecord>("organization", organizationFactory)
 
       return {
-        title: "Root Sequelize 7 consumer",
+        title: `Root Sequelize 7 consumer ${sequence}`,
         nullableNote: null,
         metadata: {
           source: "packed root entry",
@@ -122,13 +122,57 @@ async function verifyRootConsumer(): Promise<void> {
     const project = projectFactory.build()
 
     assert.equal(project instanceof Project, true)
-    assert.equal(project.title, "Root Sequelize 7 consumer")
+    assert.equal(project.title, "Root Sequelize 7 consumer 1")
 
     const createdProject = await projectFactory.create()
     const associatedOrganization = await Organization.findByPk(createdProject.organizationId)
     assert.ok(associatedOrganization)
-    assert.equal(associatedOrganization.name, "Packed organization")
-    assert.equal(await Project.count(), 1)
+    assert.match(associatedOrganization.name, /^Packed organization \d+$/)
+
+    const projects = await projectFactory.createList(2)
+    assert.deepEqual(
+      projects.map((project) => project.title),
+      ["Root Sequelize 7 consumer 3", "Root Sequelize 7 consumer 4"]
+    )
+    for (const project of projects) {
+      const organization = await Organization.findByPk(project.organizationId)
+      assert.ok(organization)
+      assert.match(organization.name, /^Packed organization \d+$/)
+      const persistedCount = await Project.count({
+        where: {
+          id: project.id,
+        },
+      })
+      assert.equal(persistedCount, 1)
+    }
+
+    const configuredFactory = projectFactory
+      .associations({
+        organization: associatedOrganization,
+      })
+      .params({
+        nullableNote: "Configured list",
+      })
+    const configuredProjects = await configuredFactory.createList(2, {
+      metadata: {
+        source: "list override",
+      },
+    })
+    assert.deepEqual(
+      configuredProjects.map((project) => project.title),
+      ["Root Sequelize 7 consumer 1", "Root Sequelize 7 consumer 2"]
+    )
+    for (const project of configuredProjects) {
+      const persistedProject = await Project.findByPk(project.id)
+      assert.equal(persistedProject?.organizationId, associatedOrganization.id)
+      assert.equal(persistedProject?.nullableNote, "Configured list")
+      assert.deepEqual(persistedProject?.metadata, {
+        source: "list override",
+      })
+    }
+    assert.equal(await Project.count(), 5)
+    assert.equal(await Organization.count(), 3)
+    console.log("Packed Sequelize 7 consumer PASS: root and configured createList with belongsTo")
   } finally {
     await sequelize.close()
   }
@@ -170,6 +214,17 @@ function checkRootConsumerTypes(
   }).modelClass
   const chainedModelRows: Promise<ProjectRecord[]> = chainedModelClass.findAll()
   const factoryContract: FactoryInterface<ProjectRecord> = projectFactory
+  const createdProjects: Promise<ProjectRecord[]> = projectFactory.createList(2, {
+    nullableNote: null,
+  })
+  const configuredProjects: Promise<ProjectRecord[]> = factoryContract
+    .params({
+      title: "Configured list project",
+    })
+    .createList(2)
+  const createdTitle: Promise<string> = createdProjects.then((projects) => projects[0].title)
+  void configuredProjects
+  void createdTitle
   const factoryContext = new FactoryContext(Project)
   factoryContext.associate<OrganizationRecord>("organization", organizationFactory)
   const registration = factoryContext.registrations[0]
@@ -188,6 +243,9 @@ function checkRootConsumerTypes(
 
   // @ts-expect-error Factory params reject unknown attribute names.
   projectFactory.create({ unknownAttribute: true })
+
+  // @ts-expect-error List params reject unknown attribute names.
+  projectFactory.createList(2, { unknownAttribute: true })
 
   // @ts-expect-error Association params require an ORM model instance.
   projectFactory.create({ organization: "not an organization" })

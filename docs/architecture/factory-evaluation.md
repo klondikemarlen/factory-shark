@@ -20,6 +20,8 @@ Sequelize-specific model access belongs to the [compatibility layer](/docs/archi
 
 `create()` evaluates the generator, resolves associations in registration order, builds the parent with resolved attributes, and attaches associations. It then awaits before-create hooks, saves the parent, and awaits after-create hooks. Chained hooks precede generator-registered hooks of the same kind. After-create changes need an explicit save when they must persist.
 
+`createList(count, params?)` returns `Promise<T[]>` on the original factory and configured builders. Supply a nonnegative integer count. It awaits `create(params)` on the same builder for each item, preserving configuration, override precedence, hooks, result order, and sequence progression across the list and later calls. Zero returns an empty array without evaluating generators, running hooks, or writing records. The first error rejects the list and prevents later items from starting; earlier persisted records remain. List creation adds no transaction or bulk-insert semantics.
+
 Associations without overrides recursively use their own factories. Register an association before another association whose lazy override needs its foreign key. Override callbacks are evaluated while building the initial associated instance and again with the resolved parent parameters during creation; they must tolerate the earlier unresolved state.
 
 ## Overrides and State

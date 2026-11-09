@@ -9,7 +9,7 @@ FactoryShark grew out of using Fishery for Sequelize tests. We wanted better han
 Install FactoryShark as a development dependency for test factories:
 
 ```sh
-npm install --save-dev factory-shark@2.0.0
+npm install --save-dev factory-shark@2.1.0
 ```
 
 If you use it outside tests, install it as a runtime dependency instead. `create()` writes real database records, so use isolated test persistence and never point test factories at production data.
@@ -206,6 +206,30 @@ describe("factories/workflow-factory.ts", () => {
       })
     })
 
+    describe("#createList", () => {
+      test("when a creator is configured, persists each workflow for that user", async () => {
+        // Arrange
+        const user = await userFactory.create()
+        const configuredFactory = workflowFactory.associations({
+          creator: user,
+        })
+
+        // Act
+        await configuredFactory.createList(2)
+
+        // Assert
+        const workflows = await Workflow.findAll()
+        expect(workflows).toEqual([
+          expect.objectContaining({
+            creatorId: user.id,
+          }),
+          expect.objectContaining({
+            creatorId: user.id,
+          }),
+        ])
+      })
+    })
+
     describe("#accessibleBy", () => {
       test("when access is requested, creates access for the supplied user", async () => {
         // Arrange
@@ -274,6 +298,8 @@ Without a foreign-key override, `build()` creates unsaved association instances 
 Parameter precedence, from lowest to highest, is generator attributes, `.associations()` defaults, `.params()` defaults, and call-time parameters. Repeated `.params()` calls merge; repeated `.associations()` calls replace their defaults. `.transient()` merges generator-only parameters that are not database columns.
 
 Configuration methods return independent builders and do not mutate the original factory. Each new builder starts its own sequence at 1 and advances it on each `build()` or `create()` evaluation. The generator runs once per evaluation; associated factories have their own evaluations and sequences.
+
+`createList(count, params?)` returns a model-specific `Promise<T[]>` on original and configured factories. Supply a nonnegative integer count. Each item awaits the normal `create(params)` lifecycle on the same builder, retaining associations, transient settings, overrides, hooks, and sequence progression. Results preserve creation order, and later calls continue the sequence. A zero count returns `[]` without generation, hooks, or persistence. The first failure rejects the list and stops later items; earlier writes remain, with no new transaction guarantee.
 
 ## Hooks and Errors
 

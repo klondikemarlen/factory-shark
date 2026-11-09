@@ -6,6 +6,8 @@ FactoryShark needs two kinds of evidence: isolated scenarios for factory behavio
 
 `npm test` runs factory scenarios against Sequelize 6.37.8 and @sequelize/core 7.0.0-alpha.48 with real in-memory SQLite models. Both families use the root factory API, including a process containing both ORM packages. Scenarios distinguish returned model state from persisted records and cover unsaved builds, association creation and reuse, override precedence, sequences, conditional registration, and hook timing and failure behavior. Type-safety cases are checked by `npm run typecheck`.
 
+List scenarios cover persisted configured relationships, sequence continuity and clone isolation, zero-count side effects, sequential hooks with transient configuration, call-time overrides, and stopping on failure without rolling back earlier writes. Installed consumers exercise `createList` on both root and configured factories through both module/declaration branches; compile-only cases preserve model-specific list returns and reject invalid overrides.
+
 The [v7 SQLite fixture](/tests/support.ts) creates fresh model subclasses for each scenario. Sequelize 7 binds an initialized model class to one database instance; closing that database does not make the class reusable for another initialization. Preserve isolated model classes and databases when adding scenarios for either integration.
 
 ## Installed Package and README

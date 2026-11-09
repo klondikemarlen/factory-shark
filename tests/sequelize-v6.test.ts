@@ -155,6 +155,64 @@ test("when a persisted association instance is supplied, create does not duplica
   })
 })
 
+test("when createList is called with Sequelize 6, it persists the requested projects", async () => {
+  // Arrange
+  await withFixture(async ({ projectFactory, Project }) => {
+    const count = 2
+
+    // Act
+    await projectFactory.createList(count)
+
+    // Assert
+    const persistedProjects = await Project.findAll({
+      attributes: ["title"],
+      order: [["id", "ASC"]],
+      raw: true,
+    })
+    assert.deepEqual(persistedProjects, [{ title: "Project 1" }, { title: "Project 2" }])
+  })
+})
+
+test("when a Sequelize 6 list has a configured organization, every persisted project retains that relationship", async () => {
+  // Arrange
+  await withFixture(async ({ organizationFactory, projectFactory, Project }) => {
+    const organization = await organizationFactory.create()
+    const configuredFactory = projectFactory.associations({
+      organization,
+    })
+
+    // Act
+    await configuredFactory.createList(2)
+
+    // Assert
+    const projects = await Project.findAll({
+      attributes: ["organizationId"],
+      raw: true,
+    })
+    assert.deepEqual(projects, [
+      { organizationId: organization.id },
+      { organizationId: organization.id },
+    ])
+  })
+})
+
+test("when a Sequelize 6 list has a configured organization, it does not replace that organization", async () => {
+  // Arrange
+  await withFixture(async ({ organizationFactory, projectFactory, Organization }) => {
+    const organization = await organizationFactory.create()
+    const configuredFactory = projectFactory.associations({
+      organization,
+    })
+
+    // Act
+    await configuredFactory.createList(2)
+
+    // Assert
+    const organizationCount = await Organization.count()
+    assert.equal(organizationCount, 1)
+  })
+})
+
 test("when call parameters conflict with factory defaults, call parameters take precedence", async () => {
   // Arrange
   await withFixture(async ({ projectFactory }) => {
@@ -296,6 +354,33 @@ export function checkSequelizeV6FactoryTypes({ Project, Organization }: Sequeliz
   void factoryContract
   void directModelRows
   void configuredModelRows
+
+  const directList: Promise<ProjectRecord[]> = projectFactory.createList(2, {
+    nullableNote: null,
+    metadata: {
+      source: "typed list",
+    },
+  })
+  const configuredFactory = projectFactory.params({
+    title: "Configured list",
+  })
+  const configuredList: Promise<ProjectRecord[]> = configuredFactory.createList(2)
+  const contractList: Promise<ProjectRecord[]> = factoryContract.createList(2)
+  void directList
+  void configuredList
+  void contractList
+
+  // @ts-expect-error List counts must be numbers.
+  projectFactory.createList("2")
+
+  // @ts-expect-error List parameters reject unknown attributes.
+  projectFactory.createList(2, { unknownAttribute: true })
+
+  // @ts-expect-error Configured lists preserve non-nullable attribute types.
+  configuredFactory.createList(2, { title: null })
+
+  // @ts-expect-error List associations require Sequelize model instances.
+  configuredFactory.createList(2, { organization: "not an organization" })
 
   const organizationFactory = FactoryShark.define(Organization, ({ sequence }) => ({
     name: `Typed organization ${sequence}`,
