@@ -1,7 +1,8 @@
 # Changelog
 
-## Unreleased
+## 2.1.0
 
+- Create persisted model lists with `createList(count, params?)` on original and configured factories, retaining associations, hooks, overrides, transient parameters, and sequence progression. Items are created sequentially; failures stop the list without rolling back earlier records.
 - Check maintained JavaScript and TypeScript with Oxlint correctness rules and zero allowed warnings in the development and CI gate.
 
 ## 2.0.0
