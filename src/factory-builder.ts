@@ -60,6 +60,17 @@ export class FactoryBuilder<
     return savedModel
   }
 
+  async createList(count: number, params?: CoreFactoryParams<T, Attributes>): Promise<T[]> {
+    const models: T[] = []
+
+    for (let index = 0; index < count; index++) {
+      const model = await this.create(params)
+      models.push(model)
+    }
+
+    return models
+  }
+
   associations<A extends object>(
     associations: Record<string, A>
   ): FactoryInterface<T, Attributes, ModelClass, TransientParams> {
