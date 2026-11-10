@@ -228,10 +228,58 @@ async function verifyRootConsumer(): Promise<void> {
     })
     assert.equal(domainFactory.build().title, "Root Sequelize 7 consumer 2")
     assert.deepEqual(hookEvents, [])
+
+    const suppliedOrganizationFactory = projectFactory.associations({
+      organization: associatedOrganization,
+    })
+    const suppliedOrganizationProject = suppliedOrganizationFactory.build()
+    assert.equal(suppliedOrganizationProject.organization, associatedOrganization)
+    assert.equal(suppliedOrganizationProject.organizationId, associatedOrganization.id)
+
+    const unsavedOrganization = organizationFactory.build()
+    const unsavedOrganizationProject = projectFactory
+      .associations({
+        organization: unsavedOrganization,
+      })
+      .build()
+    assert.equal(unsavedOrganizationProject.organization, unsavedOrganization)
+    assert.equal(unsavedOrganization.isNewRecord, true)
+    assert.ok(unsavedOrganization.id == null)
+    assert.ok(unsavedOrganizationProject.organizationId == null)
+
+    const suppliedOrganizationValues = associatedOrganization.get({
+      plain: true,
+    })
+    const conflictingOrganizationProject = suppliedOrganizationFactory.build({
+      organizationId: 7001,
+    })
+    assert.notEqual(conflictingOrganizationProject.organization, associatedOrganization)
+    assert.deepEqual(conflictingOrganizationProject.organization, { id: 7001 })
+    assert.equal(conflictingOrganizationProject.organizationId, 7001)
+    assert.deepEqual(
+      associatedOrganization.get({
+        plain: true,
+      }),
+      suppliedOrganizationValues
+    )
+
+    const overridingOrganization = Organization.build({
+      id: 7002,
+      name: "Call-time organization",
+    })
+    const overriddenOrganizationProject = suppliedOrganizationFactory.build({
+      organization: overridingOrganization,
+    })
+    assert.equal(overriddenOrganizationProject.organization, overridingOrganization)
+    assert.equal(overriddenOrganizationProject.organizationId, overridingOrganization.id)
+
+    const suppliedOrganizationAttributes = suppliedOrganizationFactory.attributesFor()
+    assert.equal(suppliedOrganizationAttributes.organizationId, associatedOrganization.id)
+    assert.equal("organization" in suppliedOrganizationAttributes, false)
     assert.equal(await Project.count(), 5)
     assert.equal(await Organization.count(), 3)
     console.log(
-      "Packed Sequelize 7 consumer PASS: attributesFor, configured factories, createList, and belongsTo"
+      "Packed Sequelize 7 consumer PASS: attributesFor, configured factories, supplied association builds, createList, and belongsTo"
     )
   } finally {
     await sequelize.close()

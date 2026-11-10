@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.3.0
+
+- Reuse supplied `belongsTo` models in unsaved builds, preserving their identity and nested relationships. Known parent IDs fill missing foreign keys without database access; explicit foreign-key overrides retain precedence. `attributesFor` includes inferred scalar keys without copying association models.
+
 ## 2.2.2
 
 - Keep Sequelize model recognition in the compatibility adapter so changes to native model contracts have one owner. Public APIs, supported versions, and validation behavior are unchanged.

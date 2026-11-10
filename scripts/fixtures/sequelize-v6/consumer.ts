@@ -303,12 +303,60 @@ async function verifyInstalledConsumer(): Promise<void> {
     })
     assert.equal(domainFactory.build().title, "Project 2")
     assert.deepEqual(attributeHookEvents, [])
+
+    const suppliedOrganizationFactory = fixture.projectFactory.associations({
+      organization: existingOrganization,
+    })
+    const suppliedOrganizationProject = suppliedOrganizationFactory.build()
+    assert.equal(suppliedOrganizationProject.organization, existingOrganization)
+    assert.equal(suppliedOrganizationProject.organizationId, existingOrganization.id)
+
+    const unsavedOrganization = fixture.organizationFactory.build()
+    const unsavedOrganizationProject = fixture.projectFactory
+      .associations({
+        organization: unsavedOrganization,
+      })
+      .build()
+    assert.equal(unsavedOrganizationProject.organization, unsavedOrganization)
+    assert.equal(unsavedOrganization.isNewRecord, true)
+    assert.ok(unsavedOrganization.id == null)
+    assert.ok(unsavedOrganizationProject.organizationId == null)
+
+    const suppliedOrganizationValues = existingOrganization.get({
+      plain: true,
+    })
+    const conflictingOrganizationProject = suppliedOrganizationFactory.build({
+      organizationId: 7001,
+    })
+    assert.notEqual(conflictingOrganizationProject.organization, existingOrganization)
+    assert.deepEqual(conflictingOrganizationProject.organization, { id: 7001 })
+    assert.equal(conflictingOrganizationProject.organizationId, 7001)
+    assert.deepEqual(
+      existingOrganization.get({
+        plain: true,
+      }),
+      suppliedOrganizationValues
+    )
+
+    const overridingOrganization = fixture.Organization.build({
+      id: 7002,
+      name: "Call-time organization",
+    })
+    const overriddenOrganizationProject = suppliedOrganizationFactory.build({
+      organization: overridingOrganization,
+    })
+    assert.equal(overriddenOrganizationProject.organization, overridingOrganization)
+    assert.equal(overriddenOrganizationProject.organizationId, overridingOrganization.id)
+
+    const suppliedOrganizationAttributes = suppliedOrganizationFactory.attributesFor()
+    assert.equal(suppliedOrganizationAttributes.organizationId, existingOrganization.id)
+    assert.equal("organization" in suppliedOrganizationAttributes, false)
     assert.equal(await fixture.Project.count(), 5)
     assert.equal(await fixture.Organization.count(), 2)
     assert.equal(await fixture.Category.count(), 5)
 
     console.log(
-      "Packed Sequelize 6 consumer PASS: attributesFor, configured factories, createList, nested belongsTo, and hooks"
+      "Packed Sequelize 6 consumer PASS: attributesFor, configured factories, supplied association builds, createList, nested belongsTo, and hooks"
     )
   } finally {
     await fixture.sequelize.close()
