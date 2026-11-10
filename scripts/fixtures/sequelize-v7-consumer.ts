@@ -287,6 +287,55 @@ async function verifyRootConsumer(): Promise<void> {
     const suppliedOrganizationAttributes = suppliedOrganizationFactory.attributesFor()
     assert.equal(suppliedOrganizationAttributes.organizationId, associatedOrganization.id)
     assert.equal("organization" in suppliedOrganizationAttributes, false)
+
+    const builtProjects: ProjectRecord[] = projectFactory.buildList(2, {
+      nullableNote: null,
+    })
+    assert.deepEqual(
+      builtProjects.map((project) => project.title),
+      ["Root Sequelize 7 consumer 7", "Root Sequelize 7 consumer 8"]
+    )
+    assert.equal(projectFactory.build().title, "Root Sequelize 7 consumer 9")
+    for (const project of builtProjects) {
+      assert.equal(project instanceof Project, true)
+      assert.equal(project.isNewRecord, true)
+    }
+
+    const buildListHookEvents: string[] = []
+    const configuredBuildFactory = projectFactory
+      .associations({
+        organization: associatedOrganization,
+      })
+      .params({
+        nullableNote: "Configured unsaved list",
+      })
+      .include("missingAssociation")
+      .beforeCreate(() => {
+        buildListHookEvents.push("before")
+      })
+      .afterCreate(async () => {
+        buildListHookEvents.push("after")
+      })
+    const configuredBuiltProjects = configuredBuildFactory.buildList(2, {
+      metadata: {
+        source: "unsaved list override",
+      },
+    })
+    assert.deepEqual(
+      configuredBuiltProjects.map((project) => project.title),
+      ["Root Sequelize 7 consumer 1", "Root Sequelize 7 consumer 2"]
+    )
+    assert.equal(configuredBuildFactory.build().title, "Root Sequelize 7 consumer 3")
+    for (const project of configuredBuiltProjects) {
+      assert.equal(project.isNewRecord, true)
+      assert.equal(project.organization, associatedOrganization)
+      assert.equal(project.organizationId, associatedOrganization.id)
+      assert.equal(project.nullableNote, "Configured unsaved list")
+      assert.deepEqual(project.metadata, {
+        source: "unsaved list override",
+      })
+    }
+    assert.deepEqual(buildListHookEvents, [])
     assert.equal(await Project.count(), 5)
     assert.equal(await Organization.count(), 3)
 
@@ -340,7 +389,7 @@ async function verifyRootConsumer(): Promise<void> {
     assert.equal(emptyIncludeProject.get("organization"), undefined)
 
     console.log(
-      "Packed Sequelize 7 consumer PASS: attributesFor, configured factories, supplied association builds, createList, nested includes, include replacement/clearing, and hook visibility"
+      "Packed Sequelize 7 consumer PASS: attributesFor, configured factories, supplied association builds, buildList, createList, nested includes, include replacement/clearing, and hook visibility"
     )
   } finally {
     await sequelize.close()
@@ -383,6 +432,23 @@ function checkRootConsumerTypes(
   }).modelClass
   const chainedModelRows: Promise<ProjectRecord[]> = chainedModelClass.findAll()
   const factoryContract: FactoryInterface<ProjectRecord> = projectFactory
+  const builtProjects: ProjectRecord[] = projectFactory.buildList(2, {
+    nullableNote: null,
+    metadata: {
+      source: "typed build list",
+    },
+  })
+  const configuredBuiltProjects: ProjectRecord[] = factoryContract
+    .params({
+      nullableNote: "Configured unsaved list",
+    })
+    .buildList(2, {
+      title: "Typed unsaved project",
+    })
+  const builtTitle: string = builtProjects[0].title
+  const configuredBuiltSource: string = configuredBuiltProjects[0].metadata.source
+  void builtTitle
+  void configuredBuiltSource
   const createdProjects: Promise<ProjectRecord[]> = projectFactory.createList(2, {
     nullableNote: null,
   })
@@ -480,6 +546,15 @@ function checkRootConsumerTypes(
 
   // @ts-expect-error List params reject unknown attribute names.
   projectFactory.createList(2, { unknownAttribute: true })
+
+  // @ts-expect-error Unsaved list params reject unknown attribute names.
+  projectFactory.buildList(2, { unknownAttribute: true })
+
+  // @ts-expect-error Configured unsaved list params preserve scalar types.
+  factoryContract.params({}).buildList(2, { title: 42 })
+
+  // @ts-expect-error Unsaved list counts must be numbers.
+  projectFactory.buildList("2")
 
   // @ts-expect-error Association params require an ORM model instance.
   projectFactory.create({ organization: "not an organization" })
