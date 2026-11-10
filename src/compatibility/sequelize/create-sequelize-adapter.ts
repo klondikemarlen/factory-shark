@@ -2,11 +2,16 @@ import isUndefined from "lodash/isUndefined.js"
 import { satisfies } from "semver"
 
 import { CreateStrategy } from "@/src/strategy/create-strategy.js"
-import type { FactoryAdapter, FactoryAssociation } from "@/src/orm-adapter.js"
 import {
   attachSuppliedCollections,
   saveSuppliedCollections,
 } from "@/src/compatibility/sequelize/supplied-collections.js"
+import type { FactoryAdapter, FactoryAssociation } from "@/src/orm-adapter.js"
+import type {
+  SequelizeCreationAttributes,
+  SequelizeModel,
+  SequelizeModelStatic,
+} from "@/src/compatibility/sequelize/types.js"
 
 type SequelizeReloadOptions = {
   include: unknown
@@ -121,7 +126,7 @@ function isCompatibleModelClass(value: unknown): boolean {
   )
 }
 
-export function createSequelizeAdapter<
+function createSequelizeAdapter<
   T extends object,
   Attributes extends object,
   ModelClass extends object,
@@ -188,4 +193,20 @@ export function createSequelizeAdapter<
   }
 }
 
-export default createSequelizeAdapter
+const adapter = createSequelizeAdapter<
+  SequelizeModel,
+  SequelizeCreationAttributes<SequelizeModel>,
+  SequelizeModelStatic<SequelizeModel>
+>()
+
+// Share one runtime adapter; model-version validation guards the native protocol.
+export function adapterFor<
+  T extends SequelizeModel,
+  ModelClass extends SequelizeModelStatic<T>,
+>(): FactoryAdapter<T, SequelizeCreationAttributes<T>, ModelClass> {
+  return adapter as unknown as FactoryAdapter<T, SequelizeCreationAttributes<T>, ModelClass>
+}
+
+export function isModel(value: unknown): value is SequelizeModel {
+  return isSupportedSequelizeModel(value)
+}
