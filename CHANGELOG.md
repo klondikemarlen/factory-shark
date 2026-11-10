@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.2.2
+
+- Keep Sequelize model recognition in the compatibility adapter so changes to native model contracts have one owner. Public APIs, supported versions, and validation behavior are unchanged.
+
 ## 2.2.1
 
 - Use canonical, release-versioned factory-authoring templates for definitions, associations, custom builders, hooks, lists, and unsaved payloads. The README links to the matching guide; generic executable examples replace application-specific examples, while model and project conventions remain consumer-owned.

@@ -95,20 +95,34 @@ export function isSupportedSequelizeModel(value: unknown): value is SequelizeMod
   }
 }
 
+function isCompatibleModelClass(value: unknown): boolean {
+  return (
+    typeof value === "function" &&
+    "prototype" in value &&
+    typeof value.prototype === "object" &&
+    value.prototype !== null &&
+    "get" in value.prototype &&
+    typeof value.prototype.get === "function" &&
+    "set" in value.prototype &&
+    typeof value.prototype.set === "function" &&
+    "save" in value.prototype &&
+    typeof value.prototype.save === "function" &&
+    "build" in value &&
+    typeof value.build === "function"
+  )
+}
+
 export function createSequelizeAdapter<
   T extends object,
   Attributes extends object,
   ModelClass extends object,
->(
-  isModel: (value: unknown) => value is T,
-  isCompatibleModelClass: (value: unknown) => value is ModelClass
-): FactoryAdapter<T, Attributes, ModelClass> {
+>(): FactoryAdapter<T, Attributes, ModelClass> {
   const getInstance = (model: object): SequelizeModelProtocol => model as SequelizeModelProtocol
   const getStatic = (modelClass: ModelClass): SequelizeModelClassProtocol<T, Attributes> =>
     modelClass as unknown as SequelizeModelClassProtocol<T, Attributes>
 
   return {
-    isModel,
+    isModel: isSupportedSequelizeModel,
     build(modelClass, attributes) {
       resolveSupportedVersion(modelClass)
       return getStatic(modelClass).build(attributes)

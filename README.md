@@ -9,7 +9,7 @@ FactoryShark grew out of using Fishery for Sequelize tests. We wanted better han
 Install FactoryShark as a development dependency for test factories:
 
 ```sh
-npm install --save-dev factory-shark@2.2.1
+npm install --save-dev factory-shark@2.2.2
 ```
 
 If you use it outside tests, install it as a runtime dependency instead. `create()` and `createList()` write real database records, so use isolated test persistence and never point test factories at production data.
@@ -25,11 +25,11 @@ FactoryShark supports Node.js 22 and 24. Native ESM and CommonJS bundles include
 
 Import `FactoryShark` and its factory types from `factory-shark` for either ORM. The supplied model selects its Sequelize integration. Your application does not need the other ORM package installed. Supported models use `id` primary keys and `belongsTo` associations; custom primary-key names and other association types are not supported.
 
-See [Sequelize compatibility](https://github.com/klondikemarlen/factory-shark/blob/v2.2.1/docs/architecture/sequelize-compatibility.md) for supported ranges and how new versions are qualified. See the [changelog](https://github.com/klondikemarlen/factory-shark/blob/v2.2.1/CHANGELOG.md) for release history.
+See [Sequelize compatibility](https://github.com/klondikemarlen/factory-shark/blob/v2.2.2/docs/architecture/sequelize-compatibility.md) for supported ranges and how new versions are qualified. See the [changelog](https://github.com/klondikemarlen/factory-shark/blob/v2.2.2/CHANGELOG.md) for release history.
 
 ## Factory Authoring Templates
 
-Use the [canonical factory-authoring guide for 2.2.1](https://github.com/klondikemarlen/factory-shark/blob/v2.2.1/docs/templates/factory-authoring.md). It owns the reusable examples previously embedded in this README:
+Use the [canonical factory-authoring guide for 2.2.2](https://github.com/klondikemarlen/factory-shark/blob/v2.2.2/docs/templates/factory-authoring.md). It owns the reusable examples previously embedded in this README:
 
 - Basic definitions and attribute generators.
 - Parent associations, overrides, and the difference between `build` and `create`.
@@ -53,7 +53,7 @@ Use that version's README and guide under the matching Git tag: `https://github.
 
 `build()` returns an unsaved model; `attributesFor()` returns its raw attributes. Neither runs create hooks or persists associations. Use explicit foreign keys for request payloads; attribute extraction is not recursive JSON serialization.
 
-`create()` saves registered associations and the parent, with awaited before/after-create hooks. `createList()` repeats that lifecycle sequentially on the same builder. No transaction wraps the complete graph or list: if a later operation fails, earlier writes remain. The [authoring guide](https://github.com/klondikemarlen/factory-shark/blob/v2.2.1/docs/templates/factory-authoring.md) explains override precedence, sequence ownership, hook ordering, and error handling.
+`create()` saves registered associations and the parent, with awaited before/after-create hooks. `createList()` repeats that lifecycle sequentially on the same builder. No transaction wraps the complete graph or list: if a later operation fails, earlier writes remain. The [authoring guide](https://github.com/klondikemarlen/factory-shark/blob/v2.2.2/docs/templates/factory-authoring.md) explains override precedence, sequence ownership, hook ordering, and error handling.
 
 ## Public Entry Points
 
