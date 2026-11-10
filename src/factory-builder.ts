@@ -1,3 +1,5 @@
+import isUndefined from "lodash/isUndefined.js"
+
 import { AssociationManager } from "@/src/association-manager.js"
 import { AttributeBuilder } from "@/src/attribute-builder.js"
 import { FactoryContext } from "@/src/factory-context.js"
@@ -27,7 +29,8 @@ export class FactoryBuilder<
     private readonly defaultParams: CoreFactoryParams<T, Attributes> = {},
     private readonly defaultAssociations: Record<string, object> = {},
     private readonly afterCreateHooks: AfterCreateFn<T>[] = [],
-    private readonly beforeCreateHooks: BeforeCreateFn<T>[] = []
+    private readonly beforeCreateHooks: BeforeCreateFn<T>[] = [],
+    private readonly defaultInclude: unknown = undefined
   ) {}
 
   build(params?: CoreFactoryParams<T, Attributes>): T {
@@ -57,6 +60,13 @@ export class FactoryBuilder<
     ])
 
     const savedModel = await this.adapter.save(model)
+    if (
+      !isUndefined(this.defaultInclude) &&
+      !(Array.isArray(this.defaultInclude) && this.defaultInclude.length === 0)
+    ) {
+      await this.adapter.reload(savedModel, this.defaultInclude)
+    }
+
     await this.runHooks(savedModel, [
       ...this.afterCreateHooks,
       ...attributeBuilder.getAfterCreateHooks(),
@@ -74,6 +84,10 @@ export class FactoryBuilder<
     }
 
     return models
+  }
+
+  include(selection: unknown): FactoryInterface<T, Attributes, ModelClass, TransientParams> {
+    return this.clone({ defaultInclude: selection })
   }
 
   associations<A extends object>(
@@ -137,7 +151,13 @@ export class FactoryBuilder<
     defaultAssociations?: Record<string, object>
     afterCreateHooks?: AfterCreateFn<T>[]
     beforeCreateHooks?: BeforeCreateFn<T>[]
+    defaultInclude?: unknown
   }): FactoryInterface<T, Attributes, ModelClass, TransientParams> {
+    let defaultInclude = this.defaultInclude
+    if ("defaultInclude" in overrides) {
+      defaultInclude = overrides.defaultInclude
+    }
+
     return new FactoryBuilder(
       this.modelClass,
       this.adapter,
@@ -146,7 +166,8 @@ export class FactoryBuilder<
       overrides.defaultParams ?? this.defaultParams,
       overrides.defaultAssociations ?? this.defaultAssociations,
       overrides.afterCreateHooks ?? this.afterCreateHooks,
-      overrides.beforeCreateHooks ?? this.beforeCreateHooks
+      overrides.beforeCreateHooks ?? this.beforeCreateHooks,
+      defaultInclude
     )
   }
 

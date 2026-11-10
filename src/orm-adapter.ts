@@ -2,6 +2,7 @@ export type FactoryAdapter<T extends object, Attributes extends object, ModelCla
   build(modelClass: ModelClass, attributes: Attributes): T
   rawAttributes(model: T): Attributes
   save(model: T): Promise<T>
+  reload(model: T, include: unknown): Promise<void>
   isModel(value: unknown): value is object
   set(model: object, key: string, value: unknown): void
   setValues(model: object, values: Record<string, unknown>): void

@@ -1,4 +1,5 @@
 import type {
+  FactoryInclude,
   SequelizeCreationAttributes as InferCreationAttributes,
   SequelizeModel as Model,
   SequelizeModelStatic as ModelStatic,
@@ -52,6 +53,9 @@ export type FactoryInterface<
   attributesFor(params?: FactoryParams<T>): InferCreationAttributes<T>
   create(params?: FactoryParams<T>): Promise<T>
   createList(count: number, params?: FactoryParams<T>): Promise<T[]>
+  include(
+    selection: FactoryInclude<T> | undefined
+  ): FactoryInterface<T, TransientParams, ModelClass>
   associations<A extends Model>(
     associations: Record<string, A>
   ): FactoryInterface<T, TransientParams, ModelClass>
@@ -138,6 +142,12 @@ export class FactoryShark<
 
   async createList(count: number, params?: FactoryParams<T>): Promise<T[]> {
     return this.builder.createList(count, params)
+  }
+
+  include(
+    selection: FactoryInclude<T> | undefined
+  ): FactoryInterface<T, TransientParams, ModelClass> {
+    return this.asFactoryInterface(this.builder.include(selection))
   }
 
   associations<A extends Model>(
@@ -235,5 +245,6 @@ export function isModel(value: unknown): value is Model {
 
 export { PRIMARY_KEY } from "./utils.js"
 export type { AfterCreateFn, BeforeCreateFn, RejectExcessKeys } from "./types.js"
+export type { FactoryInclude } from "./compatibility/sequelize/types.js"
 
 export default FactoryShark
