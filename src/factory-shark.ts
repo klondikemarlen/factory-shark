@@ -68,22 +68,7 @@ type StrictFactoryGenerator<T extends Model, TransientParams, P extends FactoryP
   context: GeneratorContext<T, TransientParams>
 ) => RejectExcessKeys<P, FactoryParams<T>>
 
-const adapter = createSequelizeAdapter<Model, InferCreationAttributes<Model>, ModelStatic<Model>>(
-  isSupportedSequelizeModel,
-  (value): value is ModelStatic<Model> =>
-    typeof value === "function" &&
-    "prototype" in value &&
-    typeof value.prototype === "object" &&
-    value.prototype !== null &&
-    "get" in value.prototype &&
-    typeof value.prototype.get === "function" &&
-    "set" in value.prototype &&
-    typeof value.prototype.set === "function" &&
-    "save" in value.prototype &&
-    typeof value.prototype.save === "function" &&
-    "build" in value &&
-    typeof value.build === "function"
-)
+const adapter = createSequelizeAdapter<Model, InferCreationAttributes<Model>, ModelStatic<Model>>()
 
 // One shared adapter delegates the common runtime protocol after model-version validation.
 function adapterFor<T extends Model, ModelClass extends ModelStatic<T>>(): FactoryAdapter<
