@@ -29,6 +29,8 @@ The shared association contract exposes foreign-key metadata, not Sequelize's as
 
 For the currently supported releases, the structural type mapping reads Sequelize's declared `_creationAttributes` type to retain the model's native creation-attribute information without importing either ORM. This is type-only metadata, never a runtime property read. Sequelize marks that property as deprecated, so its eventual replacement must be handled in the compatibility type mapping when qualifying a new contract; it is not a guarantee that every future Sequelize type definition will work unchanged.
 
+Include selection types come from the concrete model's native `reload` options, so each consumer gets its installed Sequelize family's accepted string, model, association, object, and nested include forms without a dependency on the other ORM. Only the compatibility adapter calls native reload; the shared builder controls when it runs in the create lifecycle.
+
 This follows the dependency-inversion approach illustrated by [Umzug's Sequelize storage](https://github.com/sequelize/umzug/blob/main/src/storage/sequelize.ts): a small structural contract isolates an ORM integration from the library's main workflow. FactoryShark keeps its own strict model-specific attribute and association types rather than copying Umzug's broad storage types.
 
 Organize adapters by real API differences, not one directory per patch number. Reuse an operation when both families implement the same protocol; isolate differences at the boundary instead of adding version checks to the generator or association lifecycle. There is one factory engine, not a separate implementation for each supported release.
@@ -57,4 +59,4 @@ The supported v6 and v7 releases share one runtime protocol implementation. Thei
 
 The stable v6 peer range allows compatible minor and patch releases, while the development and smoke dependencies pin the release actually checked. The v7 alpha remains exact because prerelease APIs can change without the stability guarantees of a final major release. Future versions are candidates for qualification, not automatic compatibility promises.
 
-The model contract still uses `id` primary keys and `belongsTo` associations. Version compatibility does not add association kinds or change transaction and failure semantics; see [factory evaluation](/docs/architecture/factory-evaluation.md).
+Factory-created dependencies still use `id` primary keys and `belongsTo` associations. Native eager loading through `.include()` queries existing relationships rather than extending association construction. Version compatibility does not change transaction and failure semantics; see [factory evaluation](/docs/architecture/factory-evaluation.md).

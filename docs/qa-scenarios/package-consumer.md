@@ -12,6 +12,8 @@ List scenarios cover persisted configured relationships, sequence continuity and
 
 Attribute extraction scenarios cover raw unsaved values, Date and Buffer preservation, configured precedence, sequence continuity, and the absence of create hooks and persistence. Installed Sequelize 6 and 7 consumers exercise `attributesFor` through both module/declaration branches, including configured factory helpers and rejected invalid overrides.
 
+Include scenarios distinguish factory-attached models from eager-loaded data, exercise nested selections, clone replacement and clearing, list retention, hook visibility, and failures after persistence. Synchronous build and attribute extraction must remain database-free even with includes configured. Isolated installed consumers compile each ORM's native include forms and rejected inputs and execute eager loading in ESM and CommonJS, including runtime-only installs.
+
 The [v7 SQLite fixture](/tests/support.ts) creates fresh model subclasses for each scenario. Sequelize 7 binds an initialized model class to one database instance; closing that database does not make the class reusable for another initialization. Preserve isolated model classes and databases when adding scenarios for either integration.
 
 ## Installed Package and Authoring Templates

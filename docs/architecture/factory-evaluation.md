@@ -20,15 +20,17 @@ Sequelize-specific model access belongs to the [compatibility layer](/docs/archi
 
 `attributesFor(params?)` returns the raw attribute object from one `build(params)` evaluation, typed with the model's creation-attribute shape. It preserves Date values and Buffer bytes without serialization or custom-getter evaluation. It performs no reads, writes, or create hooks. Explicit foreign keys and keys inferred from supplied models remain attributes; association model properties and `id` placeholders are not copied into the result. A supplied model's known ID does not imply that it exists in the database. This is not a recursive JSON payload serializer; consumers choose the fields accepted by their API.
 
-`create()` evaluates the generator, resolves associations in registration order, builds the parent with resolved attributes, and attaches associations. It then awaits before-create hooks, saves the parent, and awaits after-create hooks. Chained hooks precede generator-registered hooks of the same kind. After-create changes need an explicit save when they must persist.
+`create()` evaluates the generator, resolves associations in registration order, builds the parent with resolved attributes, and attaches associations. It then awaits before-create hooks, saves the parent, reloads requested includes, and awaits after-create hooks. Chained hooks precede generator-registered hooks of the same kind. After-create changes need an explicit save when they must persist.
 
 `createList(count, params?)` returns `Promise<T[]>` on the original factory and configured builders. Supply a nonnegative integer count. It awaits `create(params)` on the same builder for each item, preserving configuration, override precedence, hooks, result order, and sequence progression across the list and later calls. Zero returns an empty array without evaluating generators, running hooks, or writing records. The first error rejects the list and prevents later items from starting; earlier persisted records remain. List creation adds no transaction or bulk-insert semantics.
+
+`.include(selection)` configures eager loading independently from attributes and transient parameters. The compatibility adapter performs native `reload({ include: selection })` after save and before after-create hooks, so hooks see loaded relationships without losing their later in-memory changes. Loading selects existing rows rather than constructing a nested association graph. Rows created by later hooks need an explicit reload. No selection, `undefined`, or an empty array means no additional reload; synchronous `build` and `attributesFor` ignore this configuration.
 
 Associations without overrides recursively use their own factories. Register an association before another association whose lazy override needs its foreign key. Override callbacks are evaluated while building the initial associated instance and again with the resolved parent parameters during creation; they must tolerate the earlier unresolved state.
 
 ## Overrides and State
 
-Attribute precedence, from lowest to highest, is generated attributes, `.associations()` defaults, `.params()` defaults, then call-time parameters. Repeated `.params()` and `.transient()` calls merge their defaults; repeated `.associations()` calls replace the association defaults.
+Attribute precedence, from lowest to highest, is generated attributes, `.associations()` defaults, `.params()` defaults, then call-time parameters. Repeated `.params()` and `.transient()` calls merge their defaults; repeated `.associations()` and `.include()` calls replace their respective configuration. `.include(undefined)` or `.include([])` clears loading on the new builder, not its source. Selection objects should not be mutated after configuration.
 
 During creation, a foreign-key override takes precedence over a supplied association instance. FactoryShark loads the referenced record rather than creating another one. Without a foreign-key override, a supplied persisted model provides its ID; otherwise the associated factory creates the record and its ID fills the parent's foreign key.
 
@@ -36,6 +38,6 @@ Configuration methods create independent builders. Each builder starts its own s
 
 ## Persistence Boundaries
 
-The supported model contract uses `id` primary keys and `belongsTo` associations. Other association types and custom primary-key names are not supported. The package does not create a transaction around an entire association graph. A failed hook or later association can leave earlier records persisted; consumers must isolate and clean test data.
+Factory-created dependencies use `id` primary keys and `belongsTo` associations; other association types and custom primary-key names are not supported for construction. Eager loading is separate: Sequelize resolves the requested existing relationships. The package does not create a transaction around an entire association graph. A failed hook, later association, or include reload can leave earlier records persisted; consumers must isolate and clean test data. A reload failure skips after-create hooks and propagates to the caller.
 
 The [behavioral scenarios](/tests/factory.test.ts) cover these observable boundaries. The [consumer verification guide](/docs/qa-scenarios/package-consumer.md) explains the separate installed-artifact coverage.

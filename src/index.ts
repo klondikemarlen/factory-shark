@@ -17,6 +17,7 @@ export type {
   AssociationRegistration,
   AttributeBuilderOptions,
   BeforeCreateFn,
+  FactoryInclude,
   FactoryInterface,
   FactoryParams,
   GeneratorFn,

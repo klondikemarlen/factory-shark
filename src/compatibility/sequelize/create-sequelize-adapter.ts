@@ -4,11 +4,16 @@ import { satisfies } from "semver"
 import { CreateStrategy } from "@/src/strategy/create-strategy.js"
 import type { FactoryAdapter, FactoryAssociation } from "@/src/orm-adapter.js"
 
+type SequelizeReloadOptions = {
+  include: unknown
+}
+
 export type SequelizeModelProtocol = {
   _creationAttributes: object
   dataValues: object
   isNewRecord: boolean
   save(): Promise<unknown>
+  reload(options: SequelizeReloadOptions): Promise<unknown>
   get(key?: string): unknown
   set(keyOrValues: string | object, value?: unknown): unknown
 }
@@ -132,6 +137,11 @@ export function createSequelizeAdapter<
     },
     save(model) {
       return CreateStrategy.save(model as T & SequelizeModelProtocol)
+    },
+    async reload(model, include) {
+      await getInstance(model).reload({
+        include,
+      })
     },
     set(model, key, value) {
       getInstance(model).set(key, value)

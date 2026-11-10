@@ -3,6 +3,7 @@ import assert from "node:assert/strict"
 import type {
   CreationOptional,
   ForeignKey,
+  Includeable,
   InferAttributes,
   InferCreationAttributes,
   ModelStatic,
@@ -20,6 +21,8 @@ class OrganizationRecord extends Model<
 > {
   declare id: CreationOptional<number>
   declare name: string
+  declare parentId?: ForeignKey<OrganizationRecord["id"]>
+  declare parent?: NonAttribute<OrganizationRecord>
 }
 
 class ProjectRecord extends Model<
@@ -65,6 +68,10 @@ async function verifyRootConsumer(): Promise<void> {
           type: DataTypes.STRING,
           allowNull: false,
         },
+        parentId: {
+          type: DataTypes.INTEGER,
+          allowNull: true,
+        },
       },
       {
         sequelize,
@@ -106,6 +113,10 @@ async function verifyRootConsumer(): Promise<void> {
         sequelize,
       }
     )
+    Organization.belongsTo(Organization, {
+      as: "parent",
+      foreignKey: "parentId",
+    })
     Project.belongsTo(Organization, {
       as: "organization",
       foreignKey: "organizationId",
@@ -278,8 +289,58 @@ async function verifyRootConsumer(): Promise<void> {
     assert.equal("organization" in suppliedOrganizationAttributes, false)
     assert.equal(await Project.count(), 5)
     assert.equal(await Organization.count(), 3)
+
+    const parentOrganization = await Organization.create({
+      name: "Persisted parent organization",
+    })
+    const childOrganization = await Organization.create({
+      name: "Persisted child organization",
+      parentId: parentOrganization.id,
+    })
+    const persistedRelationshipFactory = FactoryShark.define(Project, () => ({
+      title: "Eager-loaded project",
+      nullableNote: null,
+      metadata: {
+        source: "persisted relationships",
+      },
+      organizationId: childOrganization.id,
+    }))
+    const includedFactory = persistedRelationshipFactory
+      .params({
+        nullableNote: "Configured include",
+      })
+      .include("missingAssociation")
+      .include({
+        association: "organization",
+        include: ["parent"],
+      })
+      .afterCreate(async (project) => {
+        const organization = project.get("organization")
+        assert.ok(organization instanceof Organization)
+        const parent = organization.get("parent")
+        assert.ok(parent instanceof Organization)
+        assert.equal(parent.name, parentOrganization.name)
+        project.nullableNote = "Unsaved afterCreate change"
+      })
+    const includedProjects = await includedFactory.createList(2)
+    for (const project of includedProjects) {
+      const organization = project.get("organization")
+      assert.ok(organization instanceof Organization)
+      assert.equal(organization.id, childOrganization.id)
+      assert.equal(organization.get("parent")?.id, parentOrganization.id)
+      assert.equal(project.nullableNote, "Unsaved afterCreate change")
+      const persistedProject = await Project.findByPk(project.id)
+      assert.equal(persistedProject?.nullableNote, "Configured include")
+    }
+
+    const invalidIncludeFactory = persistedRelationshipFactory.include("missingAssociation")
+    const clearedProject = await invalidIncludeFactory.include(undefined).create()
+    const emptyIncludeProject = await invalidIncludeFactory.include([]).create()
+    assert.equal(clearedProject.get("organization"), undefined)
+    assert.equal(emptyIncludeProject.get("organization"), undefined)
+
     console.log(
-      "Packed Sequelize 7 consumer PASS: attributesFor, configured factories, supplied association builds, createList, and belongsTo"
+      "Packed Sequelize 7 consumer PASS: attributesFor, configured factories, supplied association builds, createList, nested includes, include replacement/clearing, and hook visibility"
     )
   } finally {
     await sequelize.close()
@@ -343,6 +404,40 @@ function checkRootConsumerTypes(
   void configuredModelRows
   void chainedModelRows
   void factoryContract
+
+  const nativeInclude: Includeable = {
+    model: Organization,
+    as: "organization",
+  }
+  projectFactory.include(Organization)
+  projectFactory.include("organization")
+  projectFactory.include(Project.associations.organization)
+  const includedProject: Promise<ProjectRecord> = projectFactory
+    .include(nativeInclude)
+    .params({
+      nullableNote: "Typed include",
+    })
+    .include({
+      association: "organization",
+      include: ["parent"],
+    })
+    .create()
+  const includedProjects: Promise<ProjectRecord[]> = factoryContract
+    .include([nativeInclude])
+    .include(undefined)
+    .include([])
+    .createList(2)
+  void includedProject
+  void includedProjects
+
+  // @ts-expect-error Include selections reject numbers.
+  projectFactory.include(42)
+
+  // @ts-expect-error Configured selections retain native association types.
+  projectFactory.params({}).include({ association: 42 })
+
+  // @ts-expect-error Include selections reject unknown option names.
+  projectFactory.include({ invalidIncludeOption: true })
 
   const attributes = projectFactory.attributesFor({
     nullableNote: null,

@@ -3,6 +3,7 @@ import assert from "node:assert/strict"
 import type {
   CreationOptional,
   ForeignKey,
+  Includeable,
   InferAttributes,
   InferCreationAttributes,
   ModelStatic,
@@ -355,8 +356,56 @@ async function verifyInstalledConsumer(): Promise<void> {
     assert.equal(await fixture.Organization.count(), 2)
     assert.equal(await fixture.Category.count(), 5)
 
+    const persistedCategory = await fixture.Category.create({
+      name: "Persisted include category",
+      organizationId: existingOrganization.id,
+    })
+    const persistedRelationshipFactory = FactoryShark.define(fixture.Project, () => ({
+      title: "Eager-loaded project",
+      nullableNote: null,
+      metadata: {
+        source: "persisted relationships",
+      },
+      organizationId: existingOrganization.id,
+      categoryId: persistedCategory.id,
+    }))
+    const includedFactory = persistedRelationshipFactory
+      .params({
+        nullableNote: "Configured include",
+      })
+      .include("missingAssociation")
+      .include({
+        association: "category",
+        include: ["organization"],
+      })
+      .afterCreate(async (project) => {
+        const category = project.get("category")
+        assert.ok(category instanceof fixture.Category)
+        const organization = category.get("organization")
+        assert.ok(organization instanceof fixture.Organization)
+        assert.equal(organization.name, existingOrganization.name)
+        project.nullableNote = "Unsaved afterCreate change"
+      })
+    const includedProjects = await includedFactory.createList(2)
+    for (const project of includedProjects) {
+      const category = project.get("category")
+      assert.ok(category instanceof fixture.Category)
+      assert.equal(category.id, persistedCategory.id)
+      assert.equal(category.get("organization")?.id, existingOrganization.id)
+      assert.equal(project.displayTitle(), "Eager-loaded project")
+      assert.equal(project.nullableNote, "Unsaved afterCreate change")
+      const persistedProject = await fixture.Project.findByPk(project.id)
+      assert.equal(persistedProject?.nullableNote, "Configured include")
+    }
+
+    const invalidIncludeFactory = persistedRelationshipFactory.include("missingAssociation")
+    const clearedProject = await invalidIncludeFactory.include(undefined).create()
+    const emptyIncludeProject = await invalidIncludeFactory.include([]).create()
+    assert.equal(clearedProject.get("category"), undefined)
+    assert.equal(emptyIncludeProject.get("category"), undefined)
+
     console.log(
-      "Packed Sequelize 6 consumer PASS: attributesFor, configured factories, supplied association builds, createList, nested belongsTo, and hooks"
+      "Packed Sequelize 6 consumer PASS: attributesFor, configured factories, supplied association builds, createList, nested includes, include replacement/clearing, and hook visibility"
     )
   } finally {
     await fixture.sequelize.close()
@@ -420,6 +469,41 @@ export function checkInstalledConsumerTypes(
   void factoryContract
   void directModelRows
   void configuredModelRows
+
+  const nativeInclude: Includeable = {
+    model: Organization,
+    as: "organization",
+  }
+  projectFactory.include(Organization)
+  projectFactory.include("organization")
+  projectFactory.include(Project.associations.organization)
+  const includedProject: Promise<ConcreteProjectRecord> = projectFactory
+    .include(nativeInclude)
+    .params({
+      nullableNote: "Typed include",
+    })
+    .include({
+      association: "category",
+      include: ["organization"],
+    })
+    .create()
+  const includedProjects: Promise<ConcreteProjectRecord[]> = factoryContract
+    .include([nativeInclude])
+    .include(undefined)
+    .include([])
+    .createList(2)
+  const includedTitle: Promise<string> = includedProject.then((project) => project.displayTitle())
+  void includedProjects
+  void includedTitle
+
+  // @ts-expect-error Include selections reject numbers.
+  projectFactory.include(42)
+
+  // @ts-expect-error Configured selections retain native association types.
+  projectFactory.params({}).include({ association: 42 })
+
+  // @ts-expect-error Include selections reject unknown option names.
+  projectFactory.include({ invalidIncludeOption: true })
 
   const attributes = projectFactory.attributesFor({
     nullableNote: null,

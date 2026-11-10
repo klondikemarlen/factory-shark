@@ -12,3 +12,13 @@ export type SequelizeModel<T extends object = object> = {
 export type SequelizeCreationAttributes<T extends SequelizeModel> = T["_creationAttributes"]
 
 export type SequelizeModelStatic<T extends SequelizeModel> = new (...args: never[]) => T
+
+export type FactoryInclude<T extends object> = T extends {
+  reload: (...args: infer Arguments) => unknown
+}
+  ? NonNullable<Arguments[0]> extends {
+      include?: infer Selection
+    }
+    ? Selection
+    : never
+  : never
