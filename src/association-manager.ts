@@ -32,6 +32,23 @@ export class AssociationManager<T extends object, Attributes extends object, Mod
         continue
       }
 
+      const providedInstance = this.readProvidedInstance(registration.name)
+      if (!isNil(providedInstance)) {
+        if (!this.adapter.isModel(providedInstance)) {
+          throw new Error(
+            `Invalid association instance provided for "${registration.name}". Expected Model instance.`
+          )
+        }
+
+        Object.assign(model, { [registration.name]: providedInstance })
+
+        const primaryKey = this.adapter.get(providedInstance, PRIMARY_KEY)
+        if (isUndefined(foreignKeyValue) && !isNil(primaryKey)) {
+          this.adapter.set(model, registration.foreignKeyName, primaryKey)
+        }
+        continue
+      }
+
       Object.assign(model, { [registration.name]: registration.instance })
     }
   }
