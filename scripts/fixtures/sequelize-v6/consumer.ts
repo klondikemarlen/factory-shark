@@ -378,7 +378,7 @@ async function verifyInstalledConsumer(): Promise<void> {
         association: "category",
         include: ["organization"],
       })
-      .afterCreate((project) => {
+      .afterCreate(async (project) => {
         const category = project.get("category")
         assert.ok(category instanceof fixture.Category)
         const organization = category.get("organization")

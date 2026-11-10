@@ -314,7 +314,7 @@ async function verifyRootConsumer(): Promise<void> {
         association: "organization",
         include: ["parent"],
       })
-      .afterCreate((project) => {
+      .afterCreate(async (project) => {
         const organization = project.get("organization")
         assert.ok(organization instanceof Organization)
         const parent = organization.get("parent")
