@@ -1,10 +1,10 @@
 # Portable Factory Authoring
 
-Use these patterns to author test factories with FactoryShark 2.2.1. They cover direct definitions, `belongsTo` dependencies, opt-in subclass helpers, lifecycle hooks, and list creation without prescribing application business rules. The examples use Sequelize 7; the same public FactoryShark imports support the documented Sequelize 6 integration.
+Use these patterns to author test factories with FactoryShark 2.2.2. They cover direct definitions, `belongsTo` dependencies, opt-in subclass helpers, lifecycle hooks, and list creation without prescribing application business rules. The examples use Sequelize 7; the same public FactoryShark imports support the documented Sequelize 6 integration.
 
 ## Choose the Matching Guide
 
-Read the installed version from `node_modules/factory-shark/package.json` (for example, `node -p 'require("factory-shark/package.json").version'`). Open `https://github.com/klondikemarlen/factory-shark/blob/v<VERSION>/docs/templates/factory-authoring.md`, replacing `<VERSION>` with that exact version. For this release, use the [v2.2.1 guide](https://github.com/klondikemarlen/factory-shark/blob/v2.2.1/docs/templates/factory-authoring.md). Do not use the moving `main` branch to infer the contract of an installed release. If an older release has no guide at its tag, consult that release's README instead.
+Read the installed version from `node_modules/factory-shark/package.json` (for example, `node -p 'require("factory-shark/package.json").version'`). Open `https://github.com/klondikemarlen/factory-shark/blob/v<VERSION>/docs/templates/factory-authoring.md`, replacing `<VERSION>` with that exact version. For this release, use the [v2.2.2 guide](https://github.com/klondikemarlen/factory-shark/blob/v2.2.2/docs/templates/factory-authoring.md). Do not use the moving `main` branch to infer the contract of an installed release. If an older release has no guide at its tag, consult that release's README instead.
 
 This canonical source is maintained alongside the public API in the same release. The npm artifact links here rather than shipping a separate template copy.
 
