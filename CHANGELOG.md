@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.5.0
+
+- Build unsaved model lists synchronously with `buildList(count, params?)` on original and configured factories. Each item preserves build configuration, overrides, associations, and sequence progression without database access or create hooks; zero builds nothing, and generation stops at the first error.
+
 ## 2.4.0
 
 - Request existing associations with typed `.include(selection)` on original and configured factories. `create` and `createList` reload includes after save and before after-create hooks; `build` and `attributesFor` remain synchronous and database-free. Include selections replace independently, support nested Sequelize 6/7 forms, and propagate loading errors without rolling back saved records.
