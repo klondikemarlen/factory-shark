@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.6.2
+
+- Teach factory usage directly in the README with definitions, overrides, associations, lists, transient parameters, hooks, and eager loading. Keep complete test templates as optional deeper reading instead of requiring version lookup or an export inventory.
+- Organize isolated package-consumer programs, models, and setup under `tests/support/package-consumer`, separate from executable verification scripts. Runtime behavior is unchanged.
+
 ## 2.6.1
 
 - Separate public Sequelize helper adapters from the main factory facade and export package symbols from their owners. Root imports, helper constructors, types, and runtime behavior remain unchanged; factories and helpers still share one adapter.

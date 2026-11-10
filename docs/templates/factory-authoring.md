@@ -1,12 +1,6 @@
 # Portable Factory Authoring
 
-Use these patterns to author test factories with FactoryShark 2.6.1. They cover direct definitions, `belongsTo` dependencies, supplied `hasMany` children, opt-in subclass helpers, lifecycle hooks, unsaved and persisted lists, and eager loading without prescribing application business rules. The examples use Sequelize 7; the same public FactoryShark imports support the documented Sequelize 6 integration.
-
-## Choose the Matching Guide
-
-Read the installed version from `node_modules/factory-shark/package.json` (for example, `node -p 'require("factory-shark/package.json").version'`). Open `https://github.com/klondikemarlen/factory-shark/blob/v<VERSION>/docs/templates/factory-authoring.md`, replacing `<VERSION>` with that exact version. For this release, use the [v2.6.1 guide](https://github.com/klondikemarlen/factory-shark/blob/v2.6.1/docs/templates/factory-authoring.md). Do not use the moving `main` branch to infer the contract of an installed release. If an older release has no guide at its tag, consult that release's README instead.
-
-This canonical source is maintained alongside the public API in the same release. The npm artifact links here rather than shipping a separate template copy.
+Use these complete test-file examples with FactoryShark 2.6.2. For a quick introduction, start with the [README](https://github.com/klondikemarlen/factory-shark/blob/v2.6.2/README.md). This guide covers `belongsTo` dependencies, supplied `hasMany` children, opt-in subclass helpers, lifecycle hooks, lists, and eager loading. The examples use Sequelize 7; the same FactoryShark imports support Sequelize 6.
 
 ## Application-Owned Setup
 
