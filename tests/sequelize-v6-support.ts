@@ -19,6 +19,7 @@ export class OrganizationRecord extends Model<
   declare name: string
   declare observedAt?: Date | null
   declare payload?: Buffer | null
+  declare projects?: NonAttribute<ProjectRecord[]>
 }
 
 export class CategoryRecord extends Model<
@@ -29,6 +30,7 @@ export class CategoryRecord extends Model<
   declare name: string
   declare organizationId: ForeignKey<OrganizationRecord["id"]>
   declare organization?: NonAttribute<OrganizationRecord>
+  declare projects?: NonAttribute<ProjectRecord[]>
 }
 
 export class ProjectRecord extends Model<
@@ -160,6 +162,14 @@ export function createSequelizeV6Fixture(): SequelizeV6Fixture {
   Category.belongsTo(Organization, {
     as: "organization",
     foreignKey: "organizationId",
+  })
+  Organization.hasMany(Project, {
+    as: "projects",
+    foreignKey: "organizationId",
+  })
+  Category.hasMany(Project, {
+    as: "projects",
+    foreignKey: "categoryId",
   })
 
   const organizationFactory = FactoryShark.define(Organization, ({ sequence }) => ({

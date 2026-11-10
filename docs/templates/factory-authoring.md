@@ -1,10 +1,10 @@
 # Portable Factory Authoring
 
-Use these patterns to author test factories with FactoryShark 2.5.0. They cover direct definitions, `belongsTo` dependencies, opt-in subclass helpers, lifecycle hooks, unsaved and persisted lists, and eager loading without prescribing application business rules. The examples use Sequelize 7; the same public FactoryShark imports support the documented Sequelize 6 integration.
+Use these patterns to author test factories with FactoryShark 2.6.0. They cover direct definitions, `belongsTo` dependencies, supplied `hasMany` children, opt-in subclass helpers, lifecycle hooks, unsaved and persisted lists, and eager loading without prescribing application business rules. The examples use Sequelize 7; the same public FactoryShark imports support the documented Sequelize 6 integration.
 
 ## Choose the Matching Guide
 
-Read the installed version from `node_modules/factory-shark/package.json` (for example, `node -p 'require("factory-shark/package.json").version'`). Open `https://github.com/klondikemarlen/factory-shark/blob/v<VERSION>/docs/templates/factory-authoring.md`, replacing `<VERSION>` with that exact version. For this release, use the [v2.5.0 guide](https://github.com/klondikemarlen/factory-shark/blob/v2.5.0/docs/templates/factory-authoring.md). Do not use the moving `main` branch to infer the contract of an installed release. If an older release has no guide at its tag, consult that release's README instead.
+Read the installed version from `node_modules/factory-shark/package.json` (for example, `node -p 'require("factory-shark/package.json").version'`). Open `https://github.com/klondikemarlen/factory-shark/blob/v<VERSION>/docs/templates/factory-authoring.md`, replacing `<VERSION>` with that exact version. For this release, use the [v2.6.0 guide](https://github.com/klondikemarlen/factory-shark/blob/v2.6.0/docs/templates/factory-authoring.md). Do not use the moving `main` branch to infer the contract of an installed release. If an older release has no guide at its tag, consult that release's README instead.
 
 This canonical source is maintained alongside the public API in the same release. The npm artifact links here rather than shipping a separate template copy.
 
@@ -14,11 +14,11 @@ Your application owns model names, import paths, export conventions, domain trai
 
 The executable examples assume `@/models` exports initialized `Organization` and `Project` model classes with this contract:
 
-- `Organization` has `id: CreationOptional<number>` and `name: string`.
+- `Organization` has `id: CreationOptional<number>`, `name: string`, and `projects?: NonAttribute<ProjectRecord[]>`, where `ProjectRecord` is the instance type of `Project`.
 - `Project` has `id: CreationOptional<number>`, `title: string`, `note: string | null`, `organizationId: ForeignKey<OrganizationRecord["id"]>`, and `organization?: NonAttribute<OrganizationRecord>`, where `OrganizationRecord` is the instance type of `Organization`.
-- Both models use `timestamps: false`. `note` is nullable. `Project.belongsTo(Organization, { as: "organization", foreignKey: "organizationId" })` is registered before factory evaluation.
+- Both models use `timestamps: false`. `note` is nullable. Sequelize 7 registers `Organization.hasMany(Project, { as: "projects", foreignKey: "organizationId", inverse: { as: "organization" } })` before factory evaluation. This creates the inverse `belongsTo`; do not register a second incompatible inverse. Sequelize 6 instead registers both `Organization.hasMany(Project, { as: "projects", foreignKey: "organizationId" })` and `Project.belongsTo(Organization, { as: "organization", foreignKey: "organizationId" })`.
 
-The model annotations above are Sequelize types, not new FactoryShark requirements. Factory-created dependencies use `belongsTo` with an `id` primary key; eager loading through `.include()` is a separate native Sequelize query operation. The consumer verification fixtures supply real SQLite persistence. Shared Vitest setup resets the database before each test and enables global `describe`, `test`, and `expect`. Factory counters need not reset: assertions use explicit overrides rather than depending on a particular sequence position.
+The model annotations above are Sequelize types, not new FactoryShark requirements. Factory-created dependencies use `belongsTo` with an `id` primary key; supplied `hasMany` collections use the declared child model array. Eager loading through `.include()` is a separate native Sequelize query operation. The consumer verification fixtures supply real SQLite persistence. Shared Vitest setup resets the database before each test and enables global `describe`, `test`, and `expect`. Factory counters need not reset: assertions use explicit overrides rather than depending on a particular sequence position.
 
 ## Factory Templates
 
@@ -115,6 +115,157 @@ import organizationFactory from "@/factories/organization-factory"
 import projectFactory from "@/factories/project-factory"
 
 describe("factories/project-factory.ts", () => {
+  describe("supplied hasMany projects", () => {
+    test("when a collection is built, preserves each supplied child by identity", () => {
+      // Arrange
+      const projects = projectFactory.buildList(2)
+      const configuredFactory = organizationFactory.associations({
+        projects,
+      })
+
+      // Act
+      const organization = configuredFactory.build()
+
+      // Assert
+      expect(organization.projects?.[0]).toBe(projects[0])
+      expect(organization.projects?.[1]).toBe(projects[1])
+    })
+
+    test("when a collection is built, persists no children", async () => {
+      // Arrange
+      const configuredFactory = organizationFactory.associations({
+        projects: projectFactory.buildList(2),
+      })
+
+      // Act
+      configuredFactory.build()
+
+      // Assert
+      const projects = await Project.findAll()
+      expect(projects).toEqual([])
+    })
+
+    test("when a collection is built, persists no parent dependencies", async () => {
+      // Arrange
+      const configuredFactory = organizationFactory.associations({
+        projects: projectFactory.buildList(2),
+      })
+
+      // Act
+      configuredFactory.build()
+
+      // Assert
+      const organizations = await Organization.findAll()
+      expect(organizations).toEqual([])
+    })
+
+    test("when supplied children have stale foreign keys, saves their attributes with the actual parent id", async () => {
+      // Arrange
+      const configuredFactory = organizationFactory.associations({
+        projects: projectFactory.buildList(2, {
+          title: "Supplied review",
+          note: "Preserved annotation",
+          organizationId: 7001,
+        }),
+      })
+
+      // Act
+      const organization = await configuredFactory.create()
+
+      // Assert
+      const projects = await Project.findAll()
+      expect(projects).toEqual([
+        expect.objectContaining({
+          title: "Supplied review",
+          note: "Preserved annotation",
+          organizationId: organization.id,
+        }),
+        expect.objectContaining({
+          title: "Supplied review",
+          note: "Preserved annotation",
+          organizationId: organization.id,
+        }),
+      ])
+    })
+
+    test("when built children contain generated parents, saves only the actual collection parent", async () => {
+      // Arrange
+      const configuredFactory = organizationFactory.associations({
+        projects: projectFactory.buildList(2),
+      })
+
+      // Act
+      const organization = await configuredFactory.create()
+
+      // Assert
+      const organizations = await Organization.findAll()
+      expect(organizations).toEqual([
+        expect.objectContaining({
+          id: organization.id,
+        }),
+      ])
+    })
+
+    test("when an after-create hook reloads nested relationships, sees the saved children", async () => {
+      // Arrange
+      const configuredFactory = organizationFactory
+        .associations({
+          projects: projectFactory.buildList(2),
+        })
+        .afterCreate(async (organization) => {
+          await organization.reload({
+            include: {
+              association: "projects",
+              include: ["organization"],
+            },
+          })
+        })
+
+      // Act
+      const organization = await configuredFactory.create()
+
+      // Assert
+      expect(organization.projects).toEqual([
+        expect.objectContaining({
+          organization: expect.objectContaining({
+            id: organization.id,
+          }),
+        }),
+        expect.objectContaining({
+          organization: expect.objectContaining({
+            id: organization.id,
+          }),
+        }),
+      ])
+    })
+
+    test("when an empty collection is supplied, returns an empty collection", async () => {
+      // Arrange
+      const configuredFactory = organizationFactory.associations({
+        projects: [],
+      })
+
+      // Act
+      const organization = await configuredFactory.create()
+
+      // Assert
+      expect(organization.projects).toEqual([])
+    })
+
+    test("when collection attributes are requested, excludes the model collection", () => {
+      // Arrange
+      const configuredFactory = organizationFactory.params({
+        projects: projectFactory.buildList(2),
+      })
+
+      // Act
+      const attributes = configuredFactory.attributesFor()
+
+      // Assert
+      expect(attributes).not.toHaveProperty("projects")
+    })
+  })
+
   describe("#build", () => {
     test("when built without saving, returns an unsaved project", () => {
       // Arrange
@@ -555,11 +706,19 @@ Use `buildList(count, params?)` for several unsaved model instances, such as pre
 
 To reuse a persisted parent during `create`, pass its foreign key or configure `.associations({ organization })`. If both are supplied, the foreign key wins and FactoryShark loads that record. Without overrides, the registered organization factory creates and saves the dependency before the project is saved.
 
-`create` resolves associations in registration order, builds the parent, awaits before-create hooks, saves the parent, loads requested includes, then awaits after-create hooks. Chained hooks run before generator-registered hooks of the same kind. A before-create mutation participates in the parent save; an after-create mutation needs its own explicit `await project.save()` to persist. The trimming and optional annotation above only illustrate those boundaries: adapt or remove them according to your application's needs.
+`create` resolves registered `belongsTo` associations in registration order, builds the parent, awaits before-create hooks, saves the parent, saves supplied `hasMany` children, loads requested includes, then awaits after-create hooks. Chained hooks run before generator-registered hooks of the same kind. A before-create mutation participates in the parent save; an after-create mutation needs its own explicit `await project.save()` to persist. The trimming and optional annotation above only illustrate those boundaries: adapt or remove them according to your application's needs.
 
 `createList(count, params?)` is available on both the root factory and configured builders. It awaits each `create` sequentially on the same builder, preserving configuration, sequence progression, hook behavior, and result order. Supply a nonnegative integer; zero returns an empty array without evaluation or writes. The first error rejects the list and stops later items, but earlier writes remain. Neither list creation nor association-graph creation adds a transaction; the application owns isolation and cleanup.
 
 Since 2.2.0, `attributesFor(params?)` returns the raw attributes from one unsaved build, typed as the model's creation attributes. It runs no create hooks and performs no database reads or writes. It preserves Date values and Buffer bytes without serialization or custom-getter evaluation. Association model properties attached outside raw `dataValues` are excluded, including supplied models, generated associations, and foreign-key placeholders. Explicit foreign keys and keys inferred from supplied models remain in the payload; a known ID does not prove that a row exists. This is not recursive JSON serialization: choose the fields your endpoint accepts rather than assuming every raw model attribute is an API input.
+
+## Supplied Child Collections
+
+For a declared `hasMany`, use `.associations({ projects: projectFactory.buildList(2) })` on the organization factory, as in the executable tests above. `.params({ projects })` and call-time `create({ projects })` use the same model-specific collection type and override precedence. No child factory registration is needed on the parent. Only supplied children are saved: FactoryShark does not generate a collection. `build` and `buildList` attach the supplied children by identity without saving them or their dependencies; `attributesFor` excludes the collection and remains a scalar-attribute payload.
+
+During `create`, the parent is saved first so its actual `id` can replace any stale foreign key on an unsaved child. An attached inverse `belongsTo` back-reference is matched to that parent rather than saving a replacement parent. Existing attached `belongsTo` dependencies on each child are saved as needed. Child attributes and instances are retained; saving applies native Sequelize model hooks but does not rerun child factory generators or factory before/after-create hooks. Children are saved before `.include()` reloads and parent after-create hooks, so a consumer-owned hook can reload the collection and nested relationships.
+
+An already-persisted child may be reused only if its foreign key already references this parent. Reassignment to a different parent is rejected instead of silently updating an existing row. Empty collections are supported. There is no implicit transaction: a child save, include reload, or hook failure rejects creation, and earlier saves remain. The supported construction scope is supplied `hasMany` collections plus existing `belongsTo` dependencies with `id` primary keys, not `hasOne`, through associations, custom keys, or arbitrary graph traversal.
 
 ## Loading Existing Associations
 

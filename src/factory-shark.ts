@@ -25,6 +25,7 @@ import type {
   GeneratorContext as CoreGeneratorContext,
   GeneratorFn as CoreGeneratorFn,
   RejectExcessKeys,
+  SuppliedAssociations,
 } from "@/src/types.js"
 
 export type FactoryParams<T extends Model> = CoreFactoryParams<T, InferCreationAttributes<T>>
@@ -57,8 +58,8 @@ export type FactoryInterface<
   include(
     selection: FactoryInclude<T> | undefined
   ): FactoryInterface<T, TransientParams, ModelClass>
-  associations<A extends Model>(
-    associations: Record<string, A>
+  associations<A extends Model | Model[]>(
+    associations: SuppliedAssociations<T, A>
   ): FactoryInterface<T, TransientParams, ModelClass>
   params(params: FactoryParams<T>): FactoryInterface<T, TransientParams, ModelClass>
   transient(params: Partial<TransientParams>): FactoryInterface<T, TransientParams, ModelClass>
@@ -155,8 +156,8 @@ export class FactoryShark<
     return this.asFactoryInterface(this.builder.include(selection))
   }
 
-  associations<A extends Model>(
-    associations: Record<string, A>
+  associations<A extends Model | Model[]>(
+    associations: SuppliedAssociations<T, A>
   ): FactoryInterface<T, TransientParams, ModelClass> {
     return this.asFactoryInterface(this.builder.associations(associations))
   }

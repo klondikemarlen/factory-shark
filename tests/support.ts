@@ -20,6 +20,7 @@ export class OrganizationRecord extends Model<
   declare name: string
   declare observedAt?: Date | null
   declare payload?: Buffer | null
+  declare projects?: NonAttribute<ProjectRecord[]>
 }
 
 export class UserRecord extends Model<
@@ -38,6 +39,7 @@ export class CategoryRecord extends Model<
   declare name: string
   declare organizationId: ForeignKey<OrganizationRecord["id"]>
   declare organization?: NonAttribute<OrganizationRecord>
+  declare projects?: NonAttribute<ProjectRecord[]>
 }
 
 export class ProjectRecord extends Model<
@@ -187,6 +189,20 @@ export function createFixture(): Fixture {
   Category.belongsTo(Organization, {
     as: "organization",
     foreignKey: "organizationId",
+  })
+  Organization.hasMany(Project, {
+    as: "projects",
+    foreignKey: "organizationId",
+    inverse: {
+      as: "organization",
+    },
+  })
+  Category.hasMany(Project, {
+    as: "projects",
+    foreignKey: "categoryId",
+    inverse: {
+      as: "category",
+    },
   })
 
   const organizationFactory = FactoryShark.define(Organization, ({ sequence }) => ({

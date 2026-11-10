@@ -11,7 +11,7 @@ export type FactoryInterface<
   createList(count: number, params?: CoreFactoryParams<T, Attributes>): Promise<T[]>
   include(selection: unknown): FactoryInterface<T, Attributes, ModelClass, TransientParams>
   associations<A extends object>(
-    associations: Record<string, A>
+    associations: SuppliedAssociations<T, A>
   ): FactoryInterface<T, Attributes, ModelClass, TransientParams>
   params(
     params: CoreFactoryParams<T, Attributes>
@@ -31,12 +31,29 @@ export type AssociationKeys<T> = {
 }[keyof T]
 
 export type AssociationName<T extends object> = AssociationKeys<T> & string
+
+export type CollectionAssociationKeys<T> = {
+  [K in keyof T]: NonNullable<T[K]> extends (infer Child)[]
+    ? Child extends { isNewRecord: boolean; dataValues: object }
+      ? K
+      : never
+    : never
+}[keyof T]
+
+export type SuppliedAssociations<T, A> = Record<string, A> & {
+  [K in AssociationKeys<T> | CollectionAssociationKeys<T>]?: K extends CollectionAssociationKeys<T>
+    ? T[K]
+    : A extends readonly unknown[]
+      ? never
+      : A
+}
+
 export type ForeignKeyName<T extends object, Attributes extends object> = keyof Attributes &
   keyof T &
   string
 
 type FactoryParamKeys<T extends object, Attributes extends object> =
-  keyof Attributes | AssociationKeys<T>
+  keyof Attributes | AssociationKeys<T> | CollectionAssociationKeys<T>
 
 export type CoreFactoryParams<T extends object, Attributes extends object> = {
   [K in FactoryParamKeys<T, Attributes>]?: FactoryParamValue<T, Attributes, K>
