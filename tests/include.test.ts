@@ -383,7 +383,7 @@ for (const [version, create] of [
     })
   })
 
-  test(`when ${version} clones params and associations around include, all configured defaults survive`, async () => {
+  test(`when ${version} clones associations through include and params, create retains the configured relationship`, async () => {
     // Arrange
     await withFixture<IncludeFixture>(
       create,
@@ -404,7 +404,7 @@ for (const [version, create] of [
             include: ["organization"],
           })
           .params({
-            categoryId: category.id,
+            title: "Overridden title",
           })
 
         // Act
