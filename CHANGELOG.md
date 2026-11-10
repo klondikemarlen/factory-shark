@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.2.1
+
+- Use canonical, release-versioned factory-authoring templates for definitions, associations, custom builders, hooks, lists, and unsaved payloads. The README links to the matching guide; generic executable examples replace application-specific examples, while model and project conventions remain consumer-owned.
+
 ## 2.2.0
 
 - Extract unsaved model attributes with synchronous `attributesFor(params?)` on original and configured factories. It follows build precedence and sequences, preserves Date and Buffer values, and performs no persistence or create hooks.

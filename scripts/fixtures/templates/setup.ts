@@ -1,6 +1,4 @@
-import { initializeModels } from "@/initialize-models"
-
-const sequelize = initializeModels()
+import { sequelize } from "@/models"
 
 beforeEach(async () => {
   await sequelize.sync({ force: true })

@@ -9,14 +9,12 @@ FactoryShark grew out of using Fishery for Sequelize tests. We wanted better han
 Install FactoryShark as a development dependency for test factories:
 
 ```sh
-npm install --save-dev factory-shark@2.2.0
+npm install --save-dev factory-shark@2.2.1
 ```
 
-If you use it outside tests, install it as a runtime dependency instead. `create()` writes real database records, so use isolated test persistence and never point test factories at production data.
+If you use it outside tests, install it as a runtime dependency instead. `create()` and `createList()` write real database records, so use isolated test persistence and never point test factories at production data.
 
 FactoryShark supports Node.js 22 and 24. Native ESM and CommonJS bundles include matching TypeScript declarations. Use TypeScript's Node16 or NodeNext module resolution; default and named `FactoryShark` imports are supported, as is `require("factory-shark").FactoryShark`. Your application supplies Sequelize and a matching dialect.
-
-The supported model convention uses `id` as the primary key. Custom primary-key names and associations other than `belongsTo` are not supported.
 
 ### Supported Sequelize Versions
 
@@ -25,311 +23,37 @@ The supported model convention uses `id` as the primary key. Custom primary-key 
 | v6 (`sequelize`)       | `6.37.8`         |
 | v7 (`@sequelize/core`) | `7.0.0-alpha.48` |
 
-Import `FactoryShark` and its factory types from `factory-shark` for either ORM. The supplied model selects its Sequelize integration. Your application supplies its ORM and matching dialect, and does not need the other ORM package installed. The examples below use Sequelize 7.
+Import `FactoryShark` and its factory types from `factory-shark` for either ORM. The supplied model selects its Sequelize integration. Your application does not need the other ORM package installed. Supported models use `id` primary keys and `belongsTo` associations; custom primary-key names and other association types are not supported.
 
-See [Sequelize compatibility](docs/architecture/sequelize-compatibility.md) for supported ranges and how new versions are qualified. See the [changelog](CHANGELOG.md) for release history.
+See [Sequelize compatibility](https://github.com/klondikemarlen/factory-shark/blob/v2.2.1/docs/architecture/sequelize-compatibility.md) for supported ranges and how new versions are qualified. See the [changelog](https://github.com/klondikemarlen/factory-shark/blob/v2.2.1/CHANGELOG.md) for release history.
 
-## Define Factories Alongside Your Tests
+## Factory Authoring Templates
 
-Use your application's Sequelize models and shared test setup. Register models, run migrations, and arrange database cleanup there, rather than in each factory or test.
+Use the [canonical factory-authoring guide for 2.2.1](https://github.com/klondikemarlen/factory-shark/blob/v2.2.1/docs/templates/factory-authoring.md). It owns the reusable examples previously embedded in this README:
 
-The examples below use Faker-generated attributes, default-exported factories, lazy association overrides, transient parameters, and opt-in relationship helpers. Imports beginning with `@/` are application-root aliases: configure them in both your TypeScript compiler and test runner. Your application supplies the referenced models and supporting organization, category, workflow-player, and workflow-access factories. Faker and Vitest are application development dependencies, not FactoryShark runtime dependencies.
+- Basic definitions and attribute generators.
+- Parent associations, overrides, and the difference between `build` and `create`.
+- Custom builders and opt-in traits.
+- Before/after-create hooks and their persistence responsibilities.
+- `createList` on original and configured factories, plus unsaved `attributesFor` payloads.
 
-### `factories/user-factory.ts`
+The guide's examples are compiled and run against the package by the existing consumer smoke check. Models, import paths, export conventions, and application-specific traits remain your project's choices; keep those in a small local overlay rather than copying the library's lifecycle guidance.
 
-Transient roles are optional test data. The after-create hook saves them once the user has an ID, then reloads the association for callers that need it.
+### Match Your Installed Release
 
-```typescript
-import { faker } from "@faker-js/faker"
-import FactoryShark from "factory-shark"
+From your consuming project, inspect the installed version:
 
-import { Role, User } from "@/models"
-import type { RoleTypes } from "@/models/role"
-
-type UserTransientParams = {
-  roles?: RoleTypes[]
-}
-
-export const userFactory = FactoryShark.define<User, UserTransientParams>(
-  User,
-  ({ sequence, afterCreate, transient }) => {
-    afterCreate(async (user) => {
-      if (transient.roles) {
-        const rolesAttributes = transient.roles.map((role) => ({
-          userId: user.id,
-          role,
-        }))
-
-        await Role.bulkCreate(rolesAttributes)
-        await user.reload({
-          include: ["roles"],
-        })
-      }
-    })
-
-    const firstName = `${faker.person.firstName()}-${sequence}`
-    const lastName = faker.person.lastName()
-    const email = faker.internet.email({
-      firstName,
-      lastName,
-    })
-
-    return {
-      authSubject: email,
-      email,
-      firstName,
-      lastName,
-    }
-  }
-)
-
-export default userFactory
+```sh
+node -p 'require("factory-shark/package.json").version'
 ```
 
-### `factories/workflow-factory.ts`
+Use that version's README and guide under the matching Git tag: `https://github.com/klondikemarlen/factory-shark/blob/v<VERSION>/README.md`. For releases before 2.2.1, the examples remain in that version's README. Do not use moving `main` documentation to infer APIs available in an older installation. The guide is hosted at the release tag, not shipped as an npm subpath; no generator CLI is required.
 
-The category association uses a lazy override to reuse the organization's resolved foreign key. `accessibleBy` is an opt-in helper that creates related records for a supplied user.
+## Persistence Boundaries
 
-```typescript
-import { faker } from "@faker-js/faker"
-import FactoryShark from "factory-shark"
-import type { FactoryInterface, GeneratorFn } from "factory-shark"
+`build()` returns an unsaved model; `attributesFor()` returns its raw attributes. Neither runs create hooks or persists associations. Use explicit foreign keys for request payloads; attribute extraction is not recursive JSON serialization.
 
-import { User, Workflow } from "@/models"
-
-import organizationFactory from "@/factories/organization-factory"
-import userFactory from "@/factories/user-factory"
-import workflowAccessByUserFactory from "@/factories/workflow-access-by-user-factory"
-import workflowCategoryFactory from "@/factories/workflow-category-factory"
-import workflowPlayerFactory from "@/factories/workflow-player-factory"
-
-class WorkflowFactory extends FactoryShark<Workflow> {
-  constructor(generator: GeneratorFn<Workflow>) {
-    super(Workflow, generator, {})
-  }
-
-  accessibleBy(user: User): FactoryInterface<Workflow> {
-    return this.afterCreate(async (workflow) => {
-      const workflowPlayer = await workflowPlayerFactory.create({
-        workflowId: workflow.id,
-        userId: user.id,
-      })
-
-      await workflowAccessByUserFactory.create({
-        workflowId: workflow.id,
-        userId: user.id,
-        workflowPlayerId: workflowPlayer.id,
-      })
-    })
-  }
-}
-
-export const workflowFactory = new WorkflowFactory(({ sequence, associate }) => {
-  associate("organization", organizationFactory)
-
-  associate("category", workflowCategoryFactory, ({ organizationId }) => ({
-    organizationId,
-  }))
-
-  associate("creator", userFactory)
-
-  return {
-    status: Workflow.Statuses.OPEN,
-    title: `${faker.location.country()}-${sequence}`,
-  }
-})
-
-export default workflowFactory
-```
-
-## Use Factories in Focused Tests
-
-These Vitest examples use global `describe`, `test`, and `expect`, initialized models, and shared database cleanup. Each test owns its scenario data and focuses on one observable outcome; returned model state and persisted records are tested separately.
-
-### `workflow-factory.test.ts`
-
-```typescript
-import { Workflow, WorkflowAccessByUser } from "@/models"
-
-import organizationFactory from "@/factories/organization-factory"
-import userFactory from "@/factories/user-factory"
-
-import workflowFactory from "@/factories/workflow-factory"
-
-describe("factories/workflow-factory.ts", () => {
-  describe("WorkflowFactory", () => {
-    describe("#build", () => {
-      test("when built without saving, returns an unsaved workflow", () => {
-        // Arrange
-        const workflowAttributes = {
-          title: "Draft review",
-        }
-
-        // Act
-        const workflow = workflowFactory.build(workflowAttributes)
-
-        // Assert
-        expect(workflow.isNewRecord).toBe(true)
-      })
-    })
-
-    describe("#attributesFor", () => {
-      test("when supplied a foreign key, returns unsaved request attributes", () => {
-        // Arrange
-        const configuredFactory = workflowFactory.params({
-          title: "Budget review",
-        })
-
-        // Act
-        const attributes = configuredFactory.attributesFor({
-          organizationId: 42,
-        })
-
-        // Assert
-        expect(attributes).toEqual(
-          expect.objectContaining({
-            title: "Budget review",
-            organizationId: 42,
-          })
-        )
-      })
-    })
-
-    describe("#create", () => {
-      test("when provided attributes, persists the workflow", async () => {
-        // Arrange
-        const workflowAttributes = {
-          title: "Budget review",
-        }
-
-        // Act
-        await workflowFactory.create(workflowAttributes)
-
-        // Assert
-        const workflows = await Workflow.findAll()
-        expect(workflows).toEqual([
-          expect.objectContaining({
-            title: "Budget review",
-          }),
-        ])
-      })
-
-      test("when creating its category, reuses the workflow organization", async () => {
-        // Arrange
-        const organization = await organizationFactory.create()
-
-        // Act
-        const workflow = await workflowFactory.create({
-          organizationId: organization.id,
-        })
-
-        // Assert
-        expect(workflow.category?.organizationId).toBe(organization.id)
-      })
-    })
-
-    describe("#createList", () => {
-      test("when a creator is configured, persists each workflow for that user", async () => {
-        // Arrange
-        const user = await userFactory.create()
-        const configuredFactory = workflowFactory.associations({
-          creator: user,
-        })
-
-        // Act
-        await configuredFactory.createList(2)
-
-        // Assert
-        const workflows = await Workflow.findAll()
-        expect(workflows).toEqual([
-          expect.objectContaining({
-            creatorId: user.id,
-          }),
-          expect.objectContaining({
-            creatorId: user.id,
-          }),
-        ])
-      })
-    })
-
-    describe("#accessibleBy", () => {
-      test("when access is requested, creates access for the supplied user", async () => {
-        // Arrange
-        const user1 = await userFactory.create()
-        const accessibleWorkflowFactory = workflowFactory.accessibleBy(user1)
-
-        // Act
-        const workflow = await accessibleWorkflowFactory.create()
-
-        // Assert
-        const workflowAccessByUsers = await WorkflowAccessByUser.findAll()
-        expect(workflowAccessByUsers).toEqual([
-          expect.objectContaining({
-            workflowId: workflow.id,
-            userId: user1.id,
-          }),
-        ])
-      })
-    })
-  })
-})
-```
-
-### `user-factory.test.ts`
-
-```typescript
-import { Role } from "@/models"
-import { RoleTypes } from "@/models/role"
-
-import userFactory from "@/factories/user-factory"
-
-describe("factories/user-factory.ts", () => {
-  describe("userFactory", () => {
-    describe("#transient", () => {
-      test("when roles are requested, persists the requested user role", async () => {
-        // Arrange
-        const administratorFactory = userFactory.transient({
-          roles: [RoleTypes.SYSTEM_ADMIN],
-        })
-
-        // Act
-        const user = await administratorFactory.create()
-
-        // Assert
-        const roles = await Role.findAll()
-        expect(roles).toEqual([
-          expect.objectContaining({
-            userId: user.id,
-            role: RoleTypes.SYSTEM_ADMIN,
-          }),
-        ])
-      })
-    })
-  })
-})
-```
-
-## Associations and Overrides
-
-Register an association in the generator with `associate("organization", organizationFactory)`. It builds the associated instance; `create()` later persists registered associations in order. An override callback, such as `associate("category", categoryFactory, ({ organizationId }) => ({ organizationId }))`, runs during the initial build and again during creation, when earlier associations' foreign keys are available. Register dependencies before associations that use their values. You can also register associations conditionally by reading `params` or `transient` in the generator.
-
-For `create()`, pass `{ organizationId: existing.id }`, `{ organization: existing }`, or `.associations({ organization: existing })` to use an existing parent. Use persisted instances for these overrides. A foreign-key override takes precedence if both the foreign key and association instance are supplied: `create()` loads that existing association, while `build()` attaches an `{ id }` placeholder.
-
-Without a foreign-key override, `build()` creates unsaved association instances and does not write to the database. It does not reuse a supplied association instance in this case.
-
-`attributesFor(params?)` synchronously returns the raw attribute object from one `build(params)` evaluation on an original or configured factory. It preserves Date values and Buffer bytes, performs no persistence, and runs no create hooks or custom attribute getters. Explicit foreign keys remain in the result; generated associations and `{ id }` placeholders attached as model properties are not copied, and unsaved associations do not supply persisted foreign keys. Use explicit foreign-key overrides for request payloads. This is not a recursive JSON serializer; select the fields accepted by your API.
-
-Parameter precedence, from lowest to highest, is generator attributes, `.associations()` defaults, `.params()` defaults, and call-time parameters. Repeated `.params()` calls merge; repeated `.associations()` calls replace their defaults. `.transient()` merges generator-only parameters that are not database columns.
-
-Configuration methods return independent builders and do not mutate the original factory. Each new builder starts its own sequence at 1 and advances it on each `build()`, `attributesFor()`, or `create()` evaluation. The generator runs once per evaluation; associated factories have their own evaluations and sequences.
-
-`createList(count, params?)` returns a model-specific `Promise<T[]>` on original and configured factories. Supply a nonnegative integer count. Each item awaits the normal `create(params)` lifecycle on the same builder, retaining associations, transient settings, overrides, hooks, and sequence progression. Results preserve creation order, and later calls continue the sequence. A zero count returns `[]` without generation, hooks, or persistence. The first failure rejects the list and stops later items; earlier writes remain, with no new transaction guarantee.
-
-## Hooks and Errors
-
-Register `beforeCreate` and `afterCreate` hooks in the generator, or chain `.beforeCreate()` and `.afterCreate()` on the factory. Chained hooks run before generator-registered hooks of the same kind. Hooks run sequentially and are awaited. Before-create hooks see resolved association foreign keys before the parent is saved; after-create hooks see the persisted parent. Hooks do not run for `build()` or `attributesFor()`. Save any after-create changes explicitly if they must persist.
-
-Invalid association registrations raise `AssociationNotFoundError` or `ForeignKeyNotFoundError`. Invalid instance overrides and database validation or constraint failures propagate. FactoryShark does not wrap the complete association graph in a transaction. If creation fails, previously created associated records may remain; a parent saved before an after-create failure may also remain. Use disposable test persistence and clean it between scenarios.
+`create()` saves registered associations and the parent, with awaited before/after-create hooks. `createList()` repeats that lifecycle sequentially on the same builder. No transaction wraps the complete graph or list: if a later operation fails, earlier writes remain. The [authoring guide](https://github.com/klondikemarlen/factory-shark/blob/v2.2.1/docs/templates/factory-authoring.md) explains override precedence, sequence ownership, hook ordering, and error handling.
 
 ## Public Entry Points
 
@@ -337,7 +61,7 @@ Import from `factory-shark`; internal deep imports are not exported. The default
 
 ## Contribute
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and checks. For maintainers and readers interested in the project's design, see the [project knowledge base](docs/README.md).
+See [CONTRIBUTING.md](https://github.com/klondikemarlen/factory-shark/blob/v2.2.1/CONTRIBUTING.md) for development setup and checks. For maintainers and readers interested in the project's design, see the [project knowledge base](https://github.com/klondikemarlen/factory-shark/blob/v2.2.1/docs/README.md).
 
 ## Name
 
