@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.4.0
+
+- Request existing associations with typed `.include(selection)` on original and configured factories. `create` and `createList` reload includes after save and before after-create hooks; `build` and `attributesFor` remain synchronous and database-free. Include selections replace independently, support nested Sequelize 6/7 forms, and propagate loading errors without rolling back saved records.
+
 ## 2.3.0
 
 - Reuse supplied `belongsTo` models in unsaved builds, preserving their identity and nested relationships. Known parent IDs fill missing foreign keys without database access; explicit foreign-key overrides retain precedence. `attributesFor` includes inferred scalar keys without copying association models.

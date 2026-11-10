@@ -1,10 +1,10 @@
 # Portable Factory Authoring
 
-Use these patterns to author test factories with FactoryShark 2.3.0. They cover direct definitions, `belongsTo` dependencies, opt-in subclass helpers, lifecycle hooks, and list creation without prescribing application business rules. The examples use Sequelize 7; the same public FactoryShark imports support the documented Sequelize 6 integration.
+Use these patterns to author test factories with FactoryShark 2.4.0. They cover direct definitions, `belongsTo` dependencies, opt-in subclass helpers, lifecycle hooks, list creation, and eager loading without prescribing application business rules. The examples use Sequelize 7; the same public FactoryShark imports support the documented Sequelize 6 integration.
 
 ## Choose the Matching Guide
 
-Read the installed version from `node_modules/factory-shark/package.json` (for example, `node -p 'require("factory-shark/package.json").version'`). Open `https://github.com/klondikemarlen/factory-shark/blob/v<VERSION>/docs/templates/factory-authoring.md`, replacing `<VERSION>` with that exact version. For this release, use the [v2.3.0 guide](https://github.com/klondikemarlen/factory-shark/blob/v2.3.0/docs/templates/factory-authoring.md). Do not use the moving `main` branch to infer the contract of an installed release. If an older release has no guide at its tag, consult that release's README instead.
+Read the installed version from `node_modules/factory-shark/package.json` (for example, `node -p 'require("factory-shark/package.json").version'`). Open `https://github.com/klondikemarlen/factory-shark/blob/v<VERSION>/docs/templates/factory-authoring.md`, replacing `<VERSION>` with that exact version. For this release, use the [v2.4.0 guide](https://github.com/klondikemarlen/factory-shark/blob/v2.4.0/docs/templates/factory-authoring.md). Do not use the moving `main` branch to infer the contract of an installed release. If an older release has no guide at its tag, consult that release's README instead.
 
 This canonical source is maintained alongside the public API in the same release. The npm artifact links here rather than shipping a separate template copy.
 
@@ -18,7 +18,7 @@ The executable examples assume `@/models` exports initialized `Organization` and
 - `Project` has `id: CreationOptional<number>`, `title: string`, `note: string | null`, `organizationId: ForeignKey<OrganizationRecord["id"]>`, and `organization?: NonAttribute<OrganizationRecord>`, where `OrganizationRecord` is the instance type of `Organization`.
 - Both models use `timestamps: false`. `note` is nullable. `Project.belongsTo(Organization, { as: "organization", foreignKey: "organizationId" })` is registered before factory evaluation.
 
-The model annotations above are Sequelize types, not new FactoryShark requirements. The supported association contract is `belongsTo` with an `id` primary key; other association types and custom primary-key names are not supported. The consumer verification fixtures supply real SQLite persistence. Shared Vitest setup resets the database before each test and enables global `describe`, `test`, and `expect`. Factory counters need not reset: assertions use explicit overrides rather than depending on a particular sequence position.
+The model annotations above are Sequelize types, not new FactoryShark requirements. Factory-created dependencies use `belongsTo` with an `id` primary key; eager loading through `.include()` is a separate native Sequelize query operation. The consumer verification fixtures supply real SQLite persistence. Shared Vitest setup resets the database before each test and enables global `describe`, `test`, and `expect`. Factory counters need not reset: assertions use explicit overrides rather than depending on a particular sequence position.
 
 ## Factory Templates
 
@@ -97,7 +97,7 @@ const projectFactory = new ProjectFactory(
 export default projectFactory
 ```
 
-`withNote` is opt-in configuration, not a model requirement. It returns the public `FactoryInterface<ProjectRecord, ProjectTransientParams>` from `this.params`. Call custom methods on the original subclass instance first. The resulting configured builders retain the public factory API, including `transient`, hooks, and `createList`, but do not expose subclass methods such as `withNote`.
+`withNote` is opt-in configuration, not a model requirement. It returns the public `FactoryInterface<ProjectRecord, ProjectTransientParams>` from `this.params`. Call custom methods on the original subclass instance first. The resulting configured builders retain the public factory API, including `transient`, `include`, hooks, and `createList`, but do not expose subclass methods such as `withNote`.
 
 Transient parameters steer generation and hooks; they are not model columns. The empty constructor defaults make both transient options optional. Each original factory or configured clone owns a sequence starting at 1; each evaluation advances that builder's sequence once. A generator runs once per `build`, `attributesFor`, or `create` evaluation. Sequence-derived values are convenient defaults, not a database-wide uniqueness guarantee.
 
@@ -312,6 +312,64 @@ describe("factories/project-factory.ts", () => {
     })
   })
 
+  describe("#include", () => {
+    test("when an existing parent is included, exposes it in the loaded payload", async () => {
+      // Arrange
+      const organization = await organizationFactory.create({
+        name: "Existing organization",
+      })
+      const configuredFactory = projectFactory.include({
+        association: "organization",
+      })
+      const attributes = {
+        organizationId: organization.id,
+      }
+
+      // Act
+      const project = await configuredFactory.create(attributes)
+
+      // Assert
+      expect(project.get({ plain: true })).toEqual(
+        expect.objectContaining({
+          organization: expect.objectContaining({
+            id: organization.id,
+            name: "Existing organization",
+          }),
+        })
+      )
+    })
+
+    test("when a configured list includes its parent, loads it for every result", async () => {
+      // Arrange
+      const organization = await organizationFactory.create({
+        name: "Shared organization",
+      })
+      const configuredFactory = projectFactory
+        .params({
+          organizationId: organization.id,
+        })
+        .include("organization")
+
+      // Act
+      const projects = await configuredFactory.createList(2)
+
+      // Assert
+      const loadedProjects = projects.map((project) => project.get({ plain: true }))
+      expect(loadedProjects).toEqual([
+        expect.objectContaining({
+          organization: expect.objectContaining({
+            name: "Shared organization",
+          }),
+        }),
+        expect.objectContaining({
+          organization: expect.objectContaining({
+            name: "Shared organization",
+          }),
+        }),
+      ])
+    })
+  })
+
   describe("#withNote", () => {
     test("when the helper is requested, persists its configured note", async () => {
       // Arrange
@@ -422,8 +480,18 @@ describe("factories/project-factory.ts", () => {
 
 To reuse a persisted parent during `create`, pass its foreign key or configure `.associations({ organization })`. If both are supplied, the foreign key wins and FactoryShark loads that record. Without overrides, the registered organization factory creates and saves the dependency before the project is saved.
 
-`create` resolves associations in registration order, builds the parent, awaits before-create hooks, saves the parent, then awaits after-create hooks. Chained hooks run before generator-registered hooks of the same kind. A before-create mutation participates in the parent save; an after-create mutation needs its own explicit `await project.save()` to persist. The trimming and optional annotation above only illustrate those boundaries: adapt or remove them according to your application's needs.
+`create` resolves associations in registration order, builds the parent, awaits before-create hooks, saves the parent, loads requested includes, then awaits after-create hooks. Chained hooks run before generator-registered hooks of the same kind. A before-create mutation participates in the parent save; an after-create mutation needs its own explicit `await project.save()` to persist. The trimming and optional annotation above only illustrate those boundaries: adapt or remove them according to your application's needs.
 
 `createList(count, params?)` is available on both the root factory and configured builders. It awaits each `create` sequentially on the same builder, preserving configuration, sequence progression, hook behavior, and result order. Supply a nonnegative integer; zero returns an empty array without evaluation or writes. The first error rejects the list and stops later items, but earlier writes remain. Neither list creation nor association-graph creation adds a transaction; the application owns isolation and cleanup.
 
 Since 2.2.0, `attributesFor(params?)` returns the raw attributes from one unsaved build, typed as the model's creation attributes. It runs no create hooks and performs no database reads or writes. It preserves Date values and Buffer bytes without serialization or custom-getter evaluation. Association model properties attached outside raw `dataValues` are excluded, including supplied models, generated associations, and foreign-key placeholders. Explicit foreign keys and keys inferred from supplied models remain in the payload; a known ID does not prove that a row exists. This is not recursive JSON serialization: choose the fields your endpoint accepts rather than assuming every raw model attribute is an API input.
+
+## Loading Existing Associations
+
+Use `.include(selection)` on the original factory or any configured builder to request Sequelize eager loading. It accepts the supplied model's native reload include type: association names, model classes, association objects, include option objects, and arrays, including nested `include` selections. For aliased relationships, prefer the association name or an object containing `association` (or `model` and `as`); Sequelize validates the selection. Keep includes separate from model attributes and application transient parameters.
+
+Each `.include()` call creates an independent builder and replaces its prior selection; `.include(undefined)` or `.include([])` disables loading on that new builder. Other configuration methods and `createList` retain the selection. Treat selection objects as configuration values rather than mutating them after passing them to the factory.
+
+Loading uses `model.reload({ include: selection })` after the parent is saved and before any FactoryShark after-create hook. Hooks can inspect loaded relationships, and their later in-memory changes are not discarded by another automatic reload. This is a database read of existing rows, not Sequelize creation-time `include` for constructing nested records; it does not create additional dependencies. Related records created by an after-create hook or later at the call site still require an explicit reload.
+
+Without includes, creation performs no additional reload. `build` and `attributesFor` ignore loading configuration and remain synchronous and database-free. Invalid selections and loading errors reject `create` or `createList` before after-create hooks run; the already-saved parent and dependencies remain persisted.
