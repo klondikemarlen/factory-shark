@@ -9,6 +9,7 @@ FactoryShark creates Sequelize test models, their declared `belongsTo` dependenc
 - [AttributeBuilder](/src/attribute-builder.ts) evaluates the generator once per operation and merges its attributes with resolved parameters.
 - [FactoryContext](/src/factory-context.ts) records association factories, foreign-key names, and lazy override callbacks during generation.
 - [AssociationManager](/src/association-manager.ts) resolves association overrides, creates dependencies, and attaches associated models.
+- [Public helper adapters](/src/compatibility/sequelize/public-helpers.ts) supply Sequelize-facing constructors and types for the root-exported helpers; the core classes above retain evaluation and association behavior.
 
 The generator can register hooks and associations conditionally using `params` and `transient`. Transient parameters affect generation and hooks, not database columns.
 

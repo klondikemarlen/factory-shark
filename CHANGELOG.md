@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.6.1
+
+- Separate public Sequelize helper adapters from the main factory facade and export package symbols from their owners. Root imports, helper constructors, types, and runtime behavior remain unchanged; factories and helpers still share one adapter.
+
 ## 2.6.0
 
 - Persist supplied `hasMany` model arrays after saving their parent and before eager loading or after-create hooks. Unsaved children receive the parent's foreign key; persisted children cannot be silently moved between parents. Builds preserve supplied arrays without database access, and failures leave earlier writes intact.
