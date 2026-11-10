@@ -50,6 +50,7 @@ export type FactoryInterface<
   ModelClass extends ModelStatic<T> = ModelStatic<T>,
 > = {
   build(params?: FactoryParams<T>): T
+  buildList(count: number, params?: FactoryParams<T>): T[]
   attributesFor(params?: FactoryParams<T>): InferCreationAttributes<T>
   create(params?: FactoryParams<T>): Promise<T>
   createList(count: number, params?: FactoryParams<T>): Promise<T[]>
@@ -130,6 +131,10 @@ export class FactoryShark<
 
   build(params?: FactoryParams<T>): T {
     return this.builder.build(params)
+  }
+
+  buildList(count: number, params?: FactoryParams<T>): T[] {
+    return this.builder.buildList(count, params)
   }
 
   attributesFor(params?: FactoryParams<T>): InferCreationAttributes<T> {

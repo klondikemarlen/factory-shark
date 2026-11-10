@@ -41,6 +41,17 @@ export class FactoryBuilder<
     return model
   }
 
+  buildList(count: number, params?: CoreFactoryParams<T, Attributes>): T[] {
+    const models: T[] = []
+
+    for (let index = 0; index < count; index++) {
+      const model = this.build(params)
+      models.push(model)
+    }
+
+    return models
+  }
+
   attributesFor(params?: CoreFactoryParams<T, Attributes>): Attributes {
     const model = this.build(params)
     return this.adapter.rawAttributes(model)
