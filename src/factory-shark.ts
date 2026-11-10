@@ -1,24 +1,12 @@
+import { adapterFor } from "@/src/compatibility/sequelize/create-sequelize-adapter.js"
+import { FactoryBuilder } from "@/src/factory-builder.js"
 import type {
   FactoryInclude,
   SequelizeCreationAttributes as InferCreationAttributes,
   SequelizeModel as Model,
   SequelizeModelStatic as ModelStatic,
 } from "@/src/compatibility/sequelize/types.js"
-
-import {
-  createSequelizeAdapter,
-  isSupportedSequelizeModel,
-} from "@/src/compatibility/sequelize/create-sequelize-adapter.js"
-
-import { AssociationManager as CoreAssociationManager } from "@/src/association-manager.js"
-import { AttributeBuilder as CoreAttributeBuilder } from "@/src/attribute-builder.js"
-import { FactoryBuilder } from "@/src/factory-builder.js"
-import { FactoryContext as CoreFactoryContext } from "@/src/factory-context.js"
-import type { FactoryAdapter } from "@/src/orm-adapter.js"
-import type { AttributeBuilderOptions as CoreAttributeBuilderOptions } from "@/src/attribute-builder.js"
-import type { AssociationRegistration as CoreAssociationRegistration } from "@/src/factory-context.js"
 import type {
-  AssociateFunction as CoreAssociateFunction,
   AssociationName,
   CoreFactoryParams,
   FactoryInterface as CoreFactoryInterface,
@@ -74,17 +62,6 @@ type StrictFactoryGenerator<T extends Model, TransientParams, P extends FactoryP
   context: GeneratorContext<T, TransientParams>
 ) => RejectExcessKeys<P, FactoryParams<T>>
 
-const adapter = createSequelizeAdapter<Model, InferCreationAttributes<Model>, ModelStatic<Model>>()
-
-// One shared adapter delegates the common runtime protocol after model-version validation.
-function adapterFor<T extends Model, ModelClass extends ModelStatic<T>>(): FactoryAdapter<
-  T,
-  InferCreationAttributes<T>,
-  ModelClass
-> {
-  return adapter as unknown as FactoryAdapter<T, InferCreationAttributes<T>, ModelClass>
-}
-
 export class FactoryShark<
   T extends Model,
   TransientParams = Record<string, never>,
@@ -103,10 +80,11 @@ export class FactoryShark<
     generator: GeneratorFn<T, TransientParams>,
     defaultTransientParams: TransientParams
   ) {
+    const adapter = adapterFor<T, ModelClass>()
     adapter.assertCompatibleModelClass(modelClass)
     this.builder = new FactoryBuilder(
       modelClass,
-      adapterFor<T, ModelClass>(),
+      adapter,
       generator as unknown as CoreGeneratorFn<T, InferCreationAttributes<T>, TransientParams>,
       defaultTransientParams
     )
@@ -182,75 +160,5 @@ export class FactoryShark<
     return factory as unknown as FactoryInterface<T, TransientParams, ModelClass>
   }
 }
-
-export type AssociationRegistration<T extends Model> = Omit<
-  CoreAssociationRegistration<T, InferCreationAttributes<T>>,
-  "instance" | "create"
-> & {
-  instance: Model
-  create(params: FactoryParams<T>): Promise<Model>
-}
-
-export type AttributeBuilderOptions<T extends Model, TransientParams> = Omit<
-  CoreAttributeBuilderOptions<T, InferCreationAttributes<T>, TransientParams>,
-  "generator" | "associate"
-> & {
-  generator: GeneratorFn<T, TransientParams>
-  associate: PublicAssociateFunction<T>
-}
-
-export class FactoryContext<T extends Model = Model> extends CoreFactoryContext<
-  T,
-  InferCreationAttributes<T>,
-  ModelStatic<T>
-> {
-  declare readonly registrations: AssociationRegistration<T>[]
-  declare associate: PublicAssociateFunction<T> &
-    CoreAssociateFunction<T, InferCreationAttributes<T>>
-
-  constructor(modelClass: ModelStatic<T>, params: FactoryParams<T> = {}) {
-    super(modelClass, params, adapterFor<T, ModelStatic<T>>())
-  }
-}
-
-export class AssociationManager<T extends Model> extends CoreAssociationManager<
-  T,
-  InferCreationAttributes<T>,
-  ModelStatic<T>
-> {
-  constructor(
-    modelClass: ModelStatic<T>,
-    registrations: AssociationRegistration<T>[],
-    params: FactoryParams<T>
-  ) {
-    super(modelClass, registrations, params, adapterFor<T, ModelStatic<T>>())
-  }
-}
-
-export class AttributeBuilder<
-  T extends Model,
-  TransientParams = Record<string, never>,
-> extends CoreAttributeBuilder<T, InferCreationAttributes<T>, TransientParams> {
-  constructor(options: AttributeBuilderOptions<T, TransientParams>) {
-    super(
-      options as unknown as CoreAttributeBuilderOptions<
-        T,
-        InferCreationAttributes<T>,
-        TransientParams
-      >
-    )
-  }
-}
-
-export { AssociationNotFoundError, ForeignKeyNotFoundError } from "./errors.js"
-export { CreateStrategy } from "./strategy/create-strategy.js"
-
-export function isModel(value: unknown): value is Model {
-  return isSupportedSequelizeModel(value)
-}
-
-export { PRIMARY_KEY } from "./utils.js"
-export type { AfterCreateFn, BeforeCreateFn, RejectExcessKeys } from "./types.js"
-export type { FactoryInclude } from "./compatibility/sequelize/types.js"
 
 export default FactoryShark
