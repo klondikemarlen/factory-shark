@@ -14,6 +14,7 @@ export class Organization extends Model<
 > {
   declare id: CreationOptional<number>
   declare name: string
+  declare projects?: NonAttribute<Project[]>
 }
 
 export class Project extends Model<InferAttributes<Project>, InferCreationAttributes<Project>> {
@@ -80,7 +81,10 @@ Project.init(
   }
 )
 
-Project.belongsTo(Organization, {
-  as: "organization",
+Organization.hasMany(Project, {
+  as: "projects",
   foreignKey: "organizationId",
+  inverse: {
+    as: "organization",
+  },
 })

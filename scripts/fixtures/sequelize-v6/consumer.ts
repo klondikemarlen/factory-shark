@@ -20,6 +20,7 @@ class OrganizationRecord extends Model<
 > {
   declare id: CreationOptional<number>
   declare name: string
+  declare projects?: NonAttribute<ProjectRecord[]>
 }
 
 class CategoryRecord extends Model<
@@ -151,6 +152,10 @@ function createFixture(): Fixture {
 
   Project.belongsTo(Organization, {
     as: "organization",
+    foreignKey: "organizationId",
+  })
+  Organization.hasMany(Project, {
+    as: "projects",
     foreignKey: "organizationId",
   })
   Project.belongsTo(Category, {
@@ -453,6 +458,68 @@ async function verifyInstalledConsumer(): Promise<void> {
     assert.equal(clearedProject.get("category"), undefined)
     assert.equal(emptyIncludeProject.get("category"), undefined)
 
+    const suppliedCategory = fixture.Category.build({
+      name: "Supplied collection category",
+      organizationId: existingOrganization.id,
+    })
+    const suppliedProjects = fixture.projectFactory.buildList(2, {
+      title: "Supplied collection project",
+      organizationId: 7001,
+      category: suppliedCategory,
+      nullableNote: "Preserved child note",
+    })
+    const collectionFactory = fixture.organizationFactory.associations({
+      projects: suppliedProjects,
+    })
+    const builtOrganization = collectionFactory.build()
+    assert.equal(builtOrganization.projects?.[0], suppliedProjects[0])
+    assert.equal(builtOrganization.projects?.[1], suppliedProjects[1])
+    assert.equal(builtOrganization.isNewRecord, true)
+    assert.equal("projects" in collectionFactory.attributesFor(), false)
+    assert.equal(await fixture.Project.count(), 9)
+    assert.equal(await fixture.Organization.count(), 2)
+    assert.equal(await fixture.Category.count(), 6)
+
+    const collectionOrganization = await collectionFactory
+      .afterCreate(async (organization) => {
+        await organization.reload({
+          include: {
+            association: "projects",
+            include: [
+              {
+                association: "category",
+                include: ["organization"],
+              },
+            ],
+          },
+        })
+        assert.equal(organization.projects?.length, 2)
+        for (const project of organization.projects ?? []) {
+          assert.equal(project.category?.id, suppliedCategory.id)
+          assert.equal(project.category?.organization?.id, existingOrganization.id)
+        }
+      })
+      .create()
+    for (const project of suppliedProjects) {
+      assert.equal(project.isNewRecord, false)
+      assert.equal(project.organizationId, collectionOrganization.id)
+      const persistedProject = await fixture.Project.findByPk(project.id)
+      assert.equal(persistedProject?.title, "Supplied collection project")
+      assert.equal(persistedProject?.nullableNote, "Preserved child note")
+      assert.equal(persistedProject?.organizationId, collectionOrganization.id)
+    }
+    assert.equal(await fixture.Project.count(), 11)
+    assert.equal(await fixture.Organization.count(), 3)
+    assert.equal(await fixture.Category.count(), 7)
+
+    const emptyOrganization = await fixture.organizationFactory.create({
+      projects: [],
+    })
+    assert.deepEqual(emptyOrganization.projects, [])
+    assert.equal(await fixture.Project.count(), 11)
+    assert.equal(await fixture.Organization.count(), 4)
+    assert.equal(await fixture.Category.count(), 7)
+
     console.log(
       "Packed Sequelize 6 consumer PASS: attributesFor, configured factories, supplied association builds, buildList, createList, nested includes, include replacement/clearing, and hook visibility"
     )
@@ -605,6 +672,30 @@ export function checkInstalledConsumerTypes(
   const organizationFactory = FactoryShark.define(Organization, ({ sequence }) => ({
     name: `Typed organization ${sequence}`,
   }))
+  const suppliedProjects: ConcreteProjectRecord[] = projectFactory.buildList(2)
+  organizationFactory.associations({ projects: suppliedProjects }).build()
+  organizationFactory.params({ projects: suppliedProjects }).buildList(2)
+  organizationFactory.create({ projects: suppliedProjects })
+  organizationFactory.build({ projects: [] })
+
+  // @ts-expect-error Collection params require an array, not a scalar model.
+  organizationFactory.params({ projects: suppliedProjects[0] })
+
+  // @ts-expect-error Collection association defaults require an array.
+  organizationFactory.associations({ projects: suppliedProjects[0] })
+
+  // @ts-expect-error Collection params reject scalar array elements.
+  organizationFactory.params({ projects: ["not a project"] })
+
+  // @ts-expect-error Collection association defaults reject scalar array elements.
+  organizationFactory.associations({ projects: [42] })
+
+  // @ts-expect-error Collection params retain the associated model type.
+  organizationFactory.build({ projects: [organizationFactory.build()] })
+
+  // @ts-expect-error Collection defaults retain the associated model type.
+  organizationFactory.associations({ projects: [organizationFactory.build()] })
+
   const factoryContext = new FactoryContext(Project)
   factoryContext.associate<OrganizationRecord>("organization", organizationFactory)
   factoryContext.registrations[0].instance.get("id")
