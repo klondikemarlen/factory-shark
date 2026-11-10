@@ -6,6 +6,8 @@ FactoryShark needs two kinds of evidence: isolated scenarios for factory behavio
 
 `npm test` runs factory scenarios against Sequelize 6.37.8 and @sequelize/core 7.0.0-alpha.48 with real in-memory SQLite models. Both families use the root factory API, including a process containing both ORM packages. Scenarios distinguish returned model state from persisted records and cover unsaved builds, association creation and reuse, override precedence, sequences, conditional registration, and hook timing and failure behavior. Type-safety cases are checked by `npm run typecheck`.
 
+Supplied-association build scenarios cover model identity and nested relationships, known and missing IDs, explicit foreign-key precedence, parameter precedence, and the absence of database access and create hooks. Both installed ORM consumers exercise supplied builds and scalar-only attribute extraction through the root API in each module format.
+
 List scenarios cover persisted configured relationships, sequence continuity and clone isolation, zero-count side effects, sequential hooks with transient configuration, call-time overrides, and stopping on failure without rolling back earlier writes. Installed consumers exercise `createList` on both root and configured factories through both module/declaration branches; compile-only cases preserve model-specific list returns and reject invalid overrides.
 
 Attribute extraction scenarios cover raw unsaved values, Date and Buffer preservation, configured precedence, sequence continuity, and the absence of create hooks and persistence. Installed Sequelize 6 and 7 consumers exercise `attributesFor` through both module/declaration branches, including configured factory helpers and rejected invalid overrides.

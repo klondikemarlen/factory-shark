@@ -1,10 +1,10 @@
 # Portable Factory Authoring
 
-Use these patterns to author test factories with FactoryShark 2.2.2. They cover direct definitions, `belongsTo` dependencies, opt-in subclass helpers, lifecycle hooks, and list creation without prescribing application business rules. The examples use Sequelize 7; the same public FactoryShark imports support the documented Sequelize 6 integration.
+Use these patterns to author test factories with FactoryShark 2.3.0. They cover direct definitions, `belongsTo` dependencies, opt-in subclass helpers, lifecycle hooks, and list creation without prescribing application business rules. The examples use Sequelize 7; the same public FactoryShark imports support the documented Sequelize 6 integration.
 
 ## Choose the Matching Guide
 
-Read the installed version from `node_modules/factory-shark/package.json` (for example, `node -p 'require("factory-shark/package.json").version'`). Open `https://github.com/klondikemarlen/factory-shark/blob/v<VERSION>/docs/templates/factory-authoring.md`, replacing `<VERSION>` with that exact version. For this release, use the [v2.2.2 guide](https://github.com/klondikemarlen/factory-shark/blob/v2.2.2/docs/templates/factory-authoring.md). Do not use the moving `main` branch to infer the contract of an installed release. If an older release has no guide at its tag, consult that release's README instead.
+Read the installed version from `node_modules/factory-shark/package.json` (for example, `node -p 'require("factory-shark/package.json").version'`). Open `https://github.com/klondikemarlen/factory-shark/blob/v<VERSION>/docs/templates/factory-authoring.md`, replacing `<VERSION>` with that exact version. For this release, use the [v2.3.0 guide](https://github.com/klondikemarlen/factory-shark/blob/v2.3.0/docs/templates/factory-authoring.md). Do not use the moving `main` branch to infer the contract of an installed release. If an older release has no guide at its tag, consult that release's README instead.
 
 This canonical source is maintained alongside the public API in the same release. The npm artifact links here rather than shipping a separate template copy.
 
@@ -141,6 +141,38 @@ describe("factories/project-factory.ts", () => {
       // Assert
       const organizations = await Organization.findAll()
       expect(organizations).toEqual([])
+    })
+
+    test("when a parent is supplied, preserves its in-memory identity", () => {
+      // Arrange
+      const organization = organizationFactory.build({
+        id: 287,
+        name: "Unsaved organization",
+      })
+      const configuredFactory = projectFactory.associations({
+        organization,
+      })
+
+      // Act
+      const project = configuredFactory.build()
+
+      // Assert
+      expect(project.organization).toBe(organization)
+    })
+
+    test("when a supplied parent has an id, fills the missing foreign key", () => {
+      // Arrange
+      const organization = organizationFactory.build({
+        id: 287,
+      })
+
+      // Act
+      const project = projectFactory.build({
+        organization,
+      })
+
+      // Assert
+      expect(project.organizationId).toBe(287)
     })
 
     test("when a prefix is configured, uses it in the generated title", () => {
@@ -386,10 +418,12 @@ describe("factories/project-factory.ts", () => {
 
 ## Persistence and Evaluation Boundaries
 
-`build` creates an unsaved parent and attaches unsaved association instances without writing or running create hooks. A supplied foreign key creates an association `id` placeholder in build mode; a supplied association instance alone is not reused in that mode. To reuse a persisted parent during `create`, pass its foreign key or configure `.associations({ organization })`. If both are supplied, the foreign key wins and FactoryShark loads that record. Without overrides, the registered organization factory creates and saves the dependency before the project is saved.
+`build` creates an unsaved model without database reads, writes, or create hooks. For a registered association, `.associations({ organization })`, `.params({ organization })`, or `build({ organization })` reuses the supplied model and its nested in-memory graph by identity. Its known `id` fills a missing foreign key, even if the model is unsaved; a model without an ID does not invent one. A non-null explicit foreign key wins and creates an association `id` placeholder without changing the supplied model. An explicit null foreign key stays null while the supplied model is attached. Unrelated associations still use their registered factories.
+
+To reuse a persisted parent during `create`, pass its foreign key or configure `.associations({ organization })`. If both are supplied, the foreign key wins and FactoryShark loads that record. Without overrides, the registered organization factory creates and saves the dependency before the project is saved.
 
 `create` resolves associations in registration order, builds the parent, awaits before-create hooks, saves the parent, then awaits after-create hooks. Chained hooks run before generator-registered hooks of the same kind. A before-create mutation participates in the parent save; an after-create mutation needs its own explicit `await project.save()` to persist. The trimming and optional annotation above only illustrate those boundaries: adapt or remove them according to your application's needs.
 
 `createList(count, params?)` is available on both the root factory and configured builders. It awaits each `create` sequentially on the same builder, preserving configuration, sequence progression, hook behavior, and result order. Supply a nonnegative integer; zero returns an empty array without evaluation or writes. The first error rejects the list and stops later items, but earlier writes remain. Neither list creation nor association-graph creation adds a transaction; the application owns isolation and cleanup.
 
-Since 2.2.0, `attributesFor(params?)` returns the raw attributes from one unsaved build, typed as the model's creation attributes. It runs no create hooks and writes nothing. It preserves Date values and Buffer bytes without serialization or custom-getter evaluation. Association model properties attached outside raw `dataValues` are excluded, including unsaved generated associations and foreign-key placeholders; unsaved associations do not produce persisted foreign keys. Explicit foreign keys remain in the payload. This is not recursive JSON serialization: choose the fields your endpoint accepts rather than assuming every raw model attribute is an API input.
+Since 2.2.0, `attributesFor(params?)` returns the raw attributes from one unsaved build, typed as the model's creation attributes. It runs no create hooks and performs no database reads or writes. It preserves Date values and Buffer bytes without serialization or custom-getter evaluation. Association model properties attached outside raw `dataValues` are excluded, including supplied models, generated associations, and foreign-key placeholders. Explicit foreign keys and keys inferred from supplied models remain in the payload; a known ID does not prove that a row exists. This is not recursive JSON serialization: choose the fields your endpoint accepts rather than assuming every raw model attribute is an API input.
