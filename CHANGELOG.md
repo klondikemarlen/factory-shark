@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.6.0
+
+- Persist supplied `hasMany` model arrays after saving their parent and before eager loading or after-create hooks. Unsaved children receive the parent's foreign key; persisted children cannot be silently moved between parents. Builds preserve supplied arrays without database access, and failures leave earlier writes intact.
+
 ## 2.5.0
 
 - Build unsaved model lists synchronously with `buildList(count, params?)` on original and configured factories. Each item preserves build configuration, overrides, associations, and sequence progression without database access or create hooks; zero builds nothing, and generation stops at the first error.

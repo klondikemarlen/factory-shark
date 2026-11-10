@@ -31,6 +31,8 @@ For the currently supported releases, the structural type mapping reads Sequeliz
 
 Include selection types come from the concrete model's native `reload` options, so each consumer gets its installed Sequelize family's accepted string, model, association, object, and nested include forms without a dependency on the other ORM. Only the compatibility adapter calls native reload; the shared builder controls when it runs in the create lifecycle.
 
+Supplied `hasMany` collection handling also belongs to the compatibility layer: it interprets native association kinds, validates child model membership, and persists children and their attached `belongsTo` dependencies. The shared builder owns when attachment and persistence occur, without inspecting Sequelize association objects.
+
 This follows the dependency-inversion approach illustrated by [Umzug's Sequelize storage](https://github.com/sequelize/umzug/blob/main/src/storage/sequelize.ts): a small structural contract isolates an ORM integration from the library's main workflow. FactoryShark keeps its own strict model-specific attribute and association types rather than copying Umzug's broad storage types.
 
 Organize adapters by real API differences, not one directory per patch number. Reuse an operation when both families implement the same protocol; isolate differences at the boundary instead of adding version checks to the generator or association lifecycle. There is one factory engine, not a separate implementation for each supported release.
@@ -59,4 +61,4 @@ The supported v6 and v7 releases share one runtime protocol implementation. Thei
 
 The stable v6 peer range allows compatible minor and patch releases, while the development and smoke dependencies pin the release actually checked. The v7 alpha remains exact because prerelease APIs can change without the stability guarantees of a final major release. Future versions are candidates for qualification, not automatic compatibility promises.
 
-Factory-created dependencies still use `id` primary keys and `belongsTo` associations. Native eager loading through `.include()` queries existing relationships rather than extending association construction. Version compatibility does not change transaction and failure semantics; see [factory evaluation](/docs/architecture/factory-evaluation.md).
+Factory-generated dependencies use `id` primary keys and `belongsTo` associations; supplied `hasMany` model arrays can be persisted with their parent. Native eager loading through `.include()` queries existing relationships rather than generating more records. Version compatibility does not change transaction and failure semantics; see [factory evaluation](/docs/architecture/factory-evaluation.md).
