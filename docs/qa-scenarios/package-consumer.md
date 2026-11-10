@@ -10,6 +10,8 @@ Supplied-association build scenarios cover model identity and nested relationshi
 
 List scenarios cover persisted configured relationships, sequence continuity and clone isolation, zero-count side effects, sequential hooks with transient configuration, call-time overrides, and stopping on failure without rolling back earlier writes. Installed consumers exercise `createList` on both root and configured factories through both module/declaration branches; compile-only cases preserve model-specific list returns and reject invalid overrides.
 
+Unsaved list scenarios exercise `buildList` on both ORM families: distinct models, configured overrides and associations, sequence continuity, zero-count behavior, and Date and Buffer preservation. Includes and create hooks remain inactive, with no database access. Installed consumers compile model-specific list returns and execute original and configured lists through both module formats.
+
 Attribute extraction scenarios cover raw unsaved values, Date and Buffer preservation, configured precedence, sequence continuity, and the absence of create hooks and persistence. Installed Sequelize 6 and 7 consumers exercise `attributesFor` through both module/declaration branches, including configured factory helpers and rejected invalid overrides.
 
 Include scenarios distinguish factory-attached models from eager-loaded data, exercise nested selections, clone replacement and clearing, list retention, hook visibility, and failures after persistence. Synchronous build and attribute extraction must remain database-free even with includes configured. Isolated installed consumers compile each ORM's native include forms and rejected inputs and execute eager loading in ESM and CommonJS, including runtime-only installs.

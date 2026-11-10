@@ -352,6 +352,55 @@ async function verifyInstalledConsumer(): Promise<void> {
     const suppliedOrganizationAttributes = suppliedOrganizationFactory.attributesFor()
     assert.equal(suppliedOrganizationAttributes.organizationId, existingOrganization.id)
     assert.equal("organization" in suppliedOrganizationAttributes, false)
+
+    const builtProjects: ConcreteProjectRecord[] = fixture.projectFactory.buildList(2, {
+      nullableNote: null,
+    })
+    assert.deepEqual(
+      builtProjects.map((project) => project.displayTitle()),
+      ["Project 6", "Project 7"]
+    )
+    assert.equal(fixture.projectFactory.build().displayTitle(), "Project 8")
+    for (const project of builtProjects) {
+      assert.equal(project instanceof fixture.Project, true)
+      assert.equal(project.isNewRecord, true)
+    }
+
+    const buildListHookEvents: string[] = []
+    const configuredBuildFactory = fixture.projectFactory
+      .associations({
+        organization: existingOrganization,
+      })
+      .params({
+        nullableNote: "Configured unsaved list",
+      })
+      .include("missingAssociation")
+      .beforeCreate(() => {
+        buildListHookEvents.push("before")
+      })
+      .afterCreate(async () => {
+        buildListHookEvents.push("after")
+      })
+    const configuredBuiltProjects = configuredBuildFactory.buildList(2, {
+      metadata: {
+        source: "unsaved list override",
+      },
+    })
+    assert.deepEqual(
+      configuredBuiltProjects.map((project) => project.displayTitle()),
+      ["Project 1", "Project 2"]
+    )
+    assert.equal(configuredBuildFactory.build().displayTitle(), "Project 3")
+    for (const project of configuredBuiltProjects) {
+      assert.equal(project.isNewRecord, true)
+      assert.equal(project.organization, existingOrganization)
+      assert.equal(project.organizationId, existingOrganization.id)
+      assert.equal(project.nullableNote, "Configured unsaved list")
+      assert.deepEqual(project.metadata, {
+        source: "unsaved list override",
+      })
+    }
+    assert.deepEqual(buildListHookEvents, [])
     assert.equal(await fixture.Project.count(), 5)
     assert.equal(await fixture.Organization.count(), 2)
     assert.equal(await fixture.Category.count(), 5)
@@ -405,7 +454,7 @@ async function verifyInstalledConsumer(): Promise<void> {
     assert.equal(emptyIncludeProject.get("category"), undefined)
 
     console.log(
-      "Packed Sequelize 6 consumer PASS: attributesFor, configured factories, supplied association builds, createList, nested includes, include replacement/clearing, and hook visibility"
+      "Packed Sequelize 6 consumer PASS: attributesFor, configured factories, supplied association builds, buildList, createList, nested includes, include replacement/clearing, and hook visibility"
     )
   } finally {
     await fixture.sequelize.close()
@@ -450,6 +499,23 @@ export function checkInstalledConsumerTypes(
     }
   ).modelClass
   const factoryContract: FactoryInterface<ConcreteProjectRecord> = projectFactory
+  const builtProjects: ConcreteProjectRecord[] = projectFactory.buildList(2, {
+    nullableNote: null,
+    metadata: {
+      source: "typed build list",
+    },
+  })
+  const configuredBuiltProjects: ConcreteProjectRecord[] = factoryContract
+    .params({
+      nullableNote: "Configured unsaved list",
+    })
+    .buildList(2, {
+      title: "Typed unsaved project",
+    })
+  const builtTitle: string = builtProjects[0].displayTitle()
+  const configuredBuiltTitle: string = configuredBuiltProjects[0].displayTitle()
+  void builtTitle
+  void configuredBuiltTitle
   const createdProjects: Promise<ConcreteProjectRecord[]> = projectFactory.createList(2, {
     nullableNote: null,
   })
@@ -586,6 +652,15 @@ export function checkInstalledConsumerTypes(
 
   // @ts-expect-error List parameters reject unknown factory parameter keys.
   projectFactory.createList(2, { unknownAttribute: true })
+
+  // @ts-expect-error Unsaved list parameters reject unknown attribute names.
+  projectFactory.buildList(2, { unknownAttribute: true })
+
+  // @ts-expect-error Configured unsaved list parameters preserve scalar types.
+  factoryContract.params({}).buildList(2, { title: 42 })
+
+  // @ts-expect-error Unsaved list counts must be numbers.
+  projectFactory.buildList("2")
 
   const nullableParams: FactoryParams<ConcreteProjectRecord> = {
     nullableNote: null,
