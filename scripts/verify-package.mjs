@@ -65,7 +65,7 @@ function verifyInstalledArtifactImports(artifact) {
 
 function installConsumerDependencies(archivePath) {
   const consumerManifest = {
-    name: "factory-shark-readme-consumer",
+    name: "factory-shark-template-consumer",
     version: "0.0.0",
     private: true,
     type: "commonjs",
@@ -78,7 +78,6 @@ function installConsumerDependencies(archivePath) {
     devDependencies: {
       typescript: "5.4.5",
       "@types/node": "22",
-      "@faker-js/faker": "8.4.1",
       vitest: "4.1.5",
       "tsc-alias": "1.9.9",
       // Pin the consumer's Vite peer before npm builds its dependency graph.
@@ -220,31 +219,35 @@ function verifySequelizeV6Consumer(archivePath) {
   }
 }
 
-function writeConsumerExamples() {
-  const fixtureDirectory = join(projectRoot, "scripts/fixtures/readme")
+function writeAuthoringTemplates() {
+  const fixtureDirectory = join(projectRoot, "scripts/fixtures/templates")
   cpSync(fixtureDirectory, consumerDirectory, {
     recursive: true,
   })
 
-  const readme = readFileSync(join(projectRoot, "README.md"), "utf8")
-  const examplePattern = /^### `([^`]+\.ts)`[\s\S]*?^```typescript\n([\s\S]*?)^```/gm
-  let exampleCount = 0
+  const guide = readFileSync(join(projectRoot, "docs/templates/factory-authoring.md"), "utf8")
+  const templatePattern = /^### `([^`]+\.ts)`[\s\S]*?^```typescript\n([\s\S]*?)^```/gm
+  let templateCount = 0
 
-  for (const exampleMatch of readme.matchAll(examplePattern)) {
-    const [, examplePath, exampleSource] = exampleMatch
-    assert.match(examplePath, /^(?:factories\/)?[a-z-]+(?:\.test)?\.ts$/)
+  for (const templateMatch of guide.matchAll(templatePattern)) {
+    const [, templatePath, templateSource] = templateMatch
+    assert.match(templatePath, /^(?:factories\/)?[a-z-]+(?:\.test)?\.ts$/)
 
-    const consumerPath = join(consumerDirectory, examplePath)
+    const consumerPath = join(consumerDirectory, templatePath)
     mkdirSync(dirname(consumerPath), {
       recursive: true,
     })
-    writeFileSync(consumerPath, exampleSource)
-    exampleCount += 1
+    writeFileSync(consumerPath, templateSource)
+    templateCount += 1
   }
 
-  const documentedBlockCount = [...readme.matchAll(/^```typescript$/gm)].length
-  assert.ok(exampleCount > 0, "README must contain executable TypeScript examples")
-  assert.equal(exampleCount, documentedBlockCount, "Every TypeScript example needs a file heading")
+  const documentedBlockCount = [...guide.matchAll(/^```typescript$/gm)].length
+  assert.ok(templateCount > 0, "The authoring guide must contain executable TypeScript examples")
+  assert.equal(
+    templateCount,
+    documentedBlockCount,
+    "Every authoring template TypeScript block needs a file heading"
+  )
 
   const compilerConfiguration = {
     compilerOptions: {
@@ -275,7 +278,7 @@ function writeConsumerExamples() {
     test: {
       globals: true,
       setupFiles: ["./setup.ts"],
-      include: ["*-factory.test.ts"],
+      include: ["project-factory.test.ts"],
       fileParallelism: false,
     },
   }
@@ -358,7 +361,7 @@ function verifySequelizeV7TypesAndRuntime() {
   runSequelizeV7Programs("with development dependencies")
 }
 
-function verifyTypedConsumer() {
+function verifyTypedTemplates() {
   const compilerPath = join(consumerDirectory, "node_modules/typescript/bin/tsc")
   const compilerOutput = runCommand(process.execPath, [compilerPath])
   console.log(compilerOutput)
@@ -368,14 +371,14 @@ function verifyTypedConsumer() {
   console.log(aliasRewriteOutput)
 
   const vitestPath = join(consumerDirectory, "node_modules/vitest/vitest.mjs")
-  const exampleOutput = runCommand(process.execPath, [
+  const templateOutput = runCommand(process.execPath, [
     vitestPath,
     "run",
     "--config",
     "vitest.config.mjs",
   ])
-  console.log(exampleOutput)
-  console.log("Packed consumer PASS: README factory modules and focused Vitest scenarios")
+  console.log(templateOutput)
+  console.log("Packed consumer PASS: canonical authoring templates and focused Vitest scenarios")
 }
 
 function verifyCommonJsConsumer() {
@@ -384,27 +387,18 @@ function verifyCommonJsConsumer() {
   verifySequelizeV7ConsumerBoundary()
   runSequelizeV7Programs("after pruning development dependencies")
 
-  const commonJsExample = `
+  const commonJsTemplate = `
     const assert = require("node:assert/strict")
-    const { FactoryShark } = require("factory-shark")
-    const { User } = require("./compiled/models")
-    const { initializeModels } = require("./compiled/initialize-models")
+    const { sequelize } = require("./compiled/models")
+    const projectFactory = require("./compiled/factories/project-factory").default
 
     async function verifyBuild() {
-      const sequelize = initializeModels()
-
       try {
-        const userFactory = FactoryShark.define(User, () => ({
-          firstName: "CommonJS",
-          lastName: "Consumer",
-          email: "commonjs@example.com",
-          authSubject: "commonjs@example.com",
-        }))
+        const project = projectFactory.build({ title: "CommonJS template" })
 
-        const user = userFactory.build()
-
-        assert.equal(user.firstName, "CommonJS")
-        console.log("CommonJS runtime-only consumer PASS: factory build")
+        assert.equal(project.title, "CommonJS template")
+        assert.ok(project.organization)
+        console.log("CommonJS runtime-only consumer PASS: authoring template build")
       } finally {
         await sequelize.close()
       }
@@ -415,7 +409,7 @@ function verifyCommonJsConsumer() {
       process.exitCode = 1
     })
   `
-  const consumerOutput = runCommand(process.execPath, ["-e", commonJsExample])
+  const consumerOutput = runCommand(process.execPath, ["-e", commonJsTemplate])
   console.log(consumerOutput)
 }
 
@@ -451,8 +445,8 @@ try {
   verifyInstalledArtifactImports(artifact)
   verifySequelizeV7TypesAndRuntime()
   verifySequelizeV7ConsumerBoundary()
-  writeConsumerExamples()
-  verifyTypedConsumer()
+  writeAuthoringTemplates()
+  verifyTypedTemplates()
   verifyCommonJsConsumer()
   verifyInstalledPackageMetadata()
   verifySequelizeV6Consumer(archivePath)
