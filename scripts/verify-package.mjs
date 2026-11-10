@@ -117,7 +117,7 @@ function installSequelizeV6Consumer(archivePath, v6ConsumerDirectory) {
 }
 
 function writeSequelizeV6Consumer(v6ConsumerDirectory) {
-  const fixturePath = join(projectRoot, "scripts/fixtures/sequelize-v6/consumer.ts")
+  const fixturePath = join(projectRoot, "tests/support/package-consumer/sequelize-v6.ts")
   const consumerSource = readFileSync(fixturePath, "utf8")
   writeFileSync(join(v6ConsumerDirectory, "consumer.cts"), consumerSource)
   writeFileSync(join(v6ConsumerDirectory, "consumer.mts"), consumerSource)
@@ -220,7 +220,7 @@ function verifySequelizeV6Consumer(archivePath) {
 }
 
 function writeAuthoringTemplates() {
-  const fixtureDirectory = join(projectRoot, "scripts/fixtures/templates")
+  const fixtureDirectory = join(projectRoot, "tests/support/package-consumer/templates")
   cpSync(fixtureDirectory, consumerDirectory, {
     recursive: true,
   })
@@ -329,7 +329,7 @@ function runSequelizeV7Programs(installStage) {
 
 function verifySequelizeV7TypesAndRuntime() {
   const v7ConsumerDirectory = join(consumerDirectory, "sequelize-v7")
-  const fixturePath = join(projectRoot, "scripts/fixtures/sequelize-v7-consumer.ts")
+  const fixturePath = join(projectRoot, "tests/support/package-consumer/sequelize-v7.ts")
   const fixtureSource = readFileSync(fixturePath, "utf8")
   mkdirSync(v7ConsumerDirectory, {
     recursive: true,
