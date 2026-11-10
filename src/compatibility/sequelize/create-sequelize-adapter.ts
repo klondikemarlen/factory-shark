@@ -3,6 +3,10 @@ import { satisfies } from "semver"
 
 import { CreateStrategy } from "@/src/strategy/create-strategy.js"
 import type { FactoryAdapter, FactoryAssociation } from "@/src/orm-adapter.js"
+import {
+  attachSuppliedCollections,
+  saveSuppliedCollections,
+} from "@/src/compatibility/sequelize/supplied-collections.js"
 
 type SequelizeReloadOptions = {
   include: unknown
@@ -142,6 +146,12 @@ export function createSequelizeAdapter<
       await getInstance(model).reload({
         include,
       })
+    },
+    attachSuppliedCollections(model, attributes) {
+      attachSuppliedCollections(getInstance(model), attributes, isSupportedSequelizeModel)
+    },
+    saveSuppliedCollections(model) {
+      return saveSuppliedCollections(getInstance(model))
     },
     set(model, key, value) {
       getInstance(model).set(key, value)

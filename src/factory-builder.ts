@@ -10,6 +10,7 @@ import type {
   CoreFactoryParams,
   FactoryInterface,
   GeneratorFn,
+  SuppliedAssociations,
 } from "@/src/types.js"
 
 export class FactoryBuilder<
@@ -35,8 +36,10 @@ export class FactoryBuilder<
 
   build(params?: CoreFactoryParams<T, Attributes>): T {
     const { attributeBuilder, associationManager } = this.createEvaluator(params)
-    const model = this.adapter.build(this.modelClass, attributeBuilder.mergeAttributes())
+    const attributes = attributeBuilder.mergeAttributes()
+    const model = this.adapter.build(this.modelClass, attributes)
 
+    this.adapter.attachSuppliedCollections(model, attributes)
     associationManager.attachAssociations(model)
     return model
   }
@@ -63,14 +66,17 @@ export class FactoryBuilder<
     attributeBuilder.triggerGenerator()
     await associationManager.createAssociations()
 
-    const model = this.adapter.build(this.modelClass, attributeBuilder.mergeAttributes())
+    const attributes = attributeBuilder.mergeAttributes()
+    const model = this.adapter.build(this.modelClass, attributes)
     await associationManager.attachAssociationsAsync(model)
+    this.adapter.attachSuppliedCollections(model, attributes)
     await this.runHooks(model, [
       ...this.beforeCreateHooks,
       ...attributeBuilder.getBeforeCreateHooks(),
     ])
 
     const savedModel = await this.adapter.save(model)
+    await this.adapter.saveSuppliedCollections(savedModel)
     if (
       !isUndefined(this.defaultInclude) &&
       !(Array.isArray(this.defaultInclude) && this.defaultInclude.length === 0)
@@ -102,7 +108,7 @@ export class FactoryBuilder<
   }
 
   associations<A extends object>(
-    associations: Record<string, A>
+    associations: SuppliedAssociations<T, A>
   ): FactoryInterface<T, Attributes, ModelClass, TransientParams> {
     return this.clone({ defaultAssociations: associations })
   }
