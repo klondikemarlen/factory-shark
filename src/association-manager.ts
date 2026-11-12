@@ -2,7 +2,6 @@ import isNil from "lodash/isNil.js"
 import isUndefined from "lodash/isUndefined.js"
 
 import { AssociationNotFoundError } from "@/src/errors.js"
-import { PRIMARY_KEY } from "@/src/utils.js"
 import type { AssociationRegistration } from "@/src/factory-context.js"
 import type { FactoryAdapter } from "@/src/orm-adapter.js"
 import type {
@@ -10,7 +9,6 @@ import type {
   CoreFactoryParams,
   ForeignKeyName,
   ForeignKeyValue,
-  MinimalAssociation,
 } from "@/src/types.js"
 
 export class AssociationManager<T extends object, Attributes extends object, ModelClass> {
@@ -27,8 +25,12 @@ export class AssociationManager<T extends object, Attributes extends object, Mod
 
       const foreignKeyValue = this.readForeignKey(registration.foreignKeyName)
       if (!isNil(foreignKeyValue)) {
-        const minimalAssociation: MinimalAssociation = { id: foreignKeyValue }
-        Object.assign(model, { [registration.name]: minimalAssociation })
+        const targetKeyName = this.resolveTargetKeyName(registration.name)
+        Object.assign(model, {
+          [registration.name]: {
+            [targetKeyName]: foreignKeyValue,
+          },
+        })
         continue
       }
 
@@ -42,9 +44,10 @@ export class AssociationManager<T extends object, Attributes extends object, Mod
 
         Object.assign(model, { [registration.name]: providedInstance })
 
-        const primaryKey = this.adapter.get(providedInstance, PRIMARY_KEY)
-        if (isUndefined(foreignKeyValue) && !isNil(primaryKey)) {
-          this.adapter.set(model, registration.foreignKeyName, primaryKey)
+        const targetKeyName = this.resolveTargetKeyName(registration.name)
+        const targetKey = this.adapter.get(providedInstance, targetKeyName)
+        if (isUndefined(foreignKeyValue) && !isNil(targetKey)) {
+          this.adapter.set(model, registration.foreignKeyName, targetKey)
         }
         continue
       }
@@ -75,11 +78,9 @@ export class AssociationManager<T extends object, Attributes extends object, Mod
   private async createAssociation(
     registration: AssociationRegistration<T, Attributes>
   ): Promise<void> {
-    this.validateAssociationExists(registration.name)
-
     const foreignKeyValue = this.readForeignKey(registration.foreignKeyName)
     if (!isNil(foreignKeyValue)) {
-      this.backfillInstanceId(registration, foreignKeyValue)
+      this.backfillInstanceTargetKey(registration, foreignKeyValue)
       return
     }
 
@@ -92,11 +93,12 @@ export class AssociationManager<T extends object, Attributes extends object, Mod
     await this.createAndMirrorInstance(registration)
   }
 
-  private backfillInstanceId(
+  private backfillInstanceTargetKey(
     registration: AssociationRegistration<T, Attributes>,
     foreignKeyValue: ForeignKeyValue
   ): void {
-    this.adapter.set(registration.instance, PRIMARY_KEY, foreignKeyValue)
+    const targetKeyName = this.resolveTargetKeyName(registration.name)
+    this.adapter.set(registration.instance, targetKeyName, foreignKeyValue)
   }
 
   private swapInProvidedInstance(
@@ -110,7 +112,10 @@ export class AssociationManager<T extends object, Attributes extends object, Mod
     }
 
     registration.instance = providedInstance
-    this.writeForeignKey(registration.foreignKeyName, this.readPrimaryKey(providedInstance))
+    this.writeForeignKey(
+      registration.foreignKeyName,
+      this.readTargetKey(providedInstance, registration)
+    )
   }
 
   private async createAndMirrorInstance(
@@ -118,7 +123,10 @@ export class AssociationManager<T extends object, Attributes extends object, Mod
   ): Promise<void> {
     const persistedInstance = await registration.create(this.params)
     this.updateRegistrationInstance(registration, persistedInstance)
-    this.writeForeignKey(registration.foreignKeyName, this.readPrimaryKey(persistedInstance))
+    this.writeForeignKey(
+      registration.foreignKeyName,
+      this.readTargetKey(persistedInstance, registration)
+    )
   }
 
   private updateRegistrationInstance(
@@ -142,7 +150,7 @@ export class AssociationManager<T extends object, Attributes extends object, Mod
     const association = this.adapter.association(this.modelClass, registration.name)
     if (!association) return null
 
-    return this.adapter.findByPk(association, foreignKeyValue)
+    return this.adapter.findByTargetKey(association, foreignKeyValue)
   }
 
   private backfillForeignKeyIfNeeded(
@@ -153,12 +161,13 @@ export class AssociationManager<T extends object, Attributes extends object, Mod
   ): void {
     if (!isNil(foreignKeyValue) || !associatedModel) return
 
-    const associationPrimaryKey = this.readPrimaryKey(associatedModel)
-    Object.assign(model, { [registration.foreignKeyName]: associationPrimaryKey })
+    const targetKey = this.readTargetKey(associatedModel, registration)
+    Object.assign(model, { [registration.foreignKeyName]: targetKey })
   }
 
-  private validateAssociationExists(name: AssociationName<T>): void {
-    if (this.adapter.association(this.modelClass, name)) return
+  private resolveTargetKeyName(name: AssociationName<T>): string {
+    const association = this.adapter.association(this.modelClass, name)
+    if (association) return association.targetKey
 
     throw new AssociationNotFoundError(
       this.adapter.modelName(this.modelClass),
@@ -187,13 +196,19 @@ export class AssociationManager<T extends object, Attributes extends object, Mod
     this.params[foreignKeyName] = value as CoreFactoryParams<T, Attributes>[K]
   }
 
-  private readPrimaryKey(model: object): ForeignKeyValue {
-    const primaryKey = this.adapter.get(model, PRIMARY_KEY)
+  private readTargetKey(
+    model: object,
+    registration: AssociationRegistration<T, Attributes>
+  ): ForeignKeyValue {
+    const targetKeyName = this.resolveTargetKeyName(registration.name)
+    const targetKey = this.adapter.get(model, targetKeyName)
 
-    if (isUndefined(primaryKey) || primaryKey === null) {
-      throw new Error(`Expected primary key on ${model.constructor.name}, got ${primaryKey}`)
+    if (isNil(targetKey)) {
+      throw new Error(
+        `Expected target key "${targetKeyName}" on ${model.constructor.name}, got ${targetKey}`
+      )
     }
 
-    return primaryKey as ForeignKeyValue
+    return targetKey as ForeignKeyValue
   }
 }

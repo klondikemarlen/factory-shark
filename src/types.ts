@@ -24,6 +24,9 @@ export type FactoryInterface<
   beforeCreate(
     hook: BeforeCreateFn<T>
   ): FactoryInterface<T, Attributes, ModelClass, TransientParams>
+  onCreate(
+    persist: (model: T) => Promise<T>
+  ): FactoryInterface<T, Attributes, ModelClass, TransientParams>
   modelClass: ModelClass
 }
 
@@ -115,4 +118,3 @@ export type AssociateFunction<T extends object, Attributes extends object> = <
 
 export type RejectExcessKeys<P, Target> = P & Record<Exclude<keyof P, keyof Target>, never>
 export type ForeignKeyValue = string | number
-export type MinimalAssociation = { id: ForeignKeyValue }

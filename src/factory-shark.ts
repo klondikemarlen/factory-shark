@@ -56,6 +56,7 @@ export type FactoryInterface<
   beforeCreate(
     hook: (model: T) => void | Promise<void>
   ): FactoryInterface<T, TransientParams, ModelClass>
+  onCreate(persist: (model: T) => Promise<T>): FactoryInterface<T, TransientParams, ModelClass>
   modelClass: ModelClass
 }
 
@@ -157,6 +158,10 @@ export class FactoryShark<
     hook: (model: T) => void | Promise<void>
   ): FactoryInterface<T, TransientParams, ModelClass> {
     return this.asFactoryInterface(this.builder.beforeCreate(hook))
+  }
+
+  onCreate(persist: (model: T) => Promise<T>): FactoryInterface<T, TransientParams, ModelClass> {
+    return this.asFactoryInterface(this.builder.onCreate(persist))
   }
 
   private asFactoryInterface(

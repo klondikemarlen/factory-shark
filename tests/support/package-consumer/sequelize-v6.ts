@@ -614,6 +614,21 @@ async function verifyInstalledConsumer(): Promise<void> {
       },
     ])
 
+    const customPersistenceFactory = fixture.organizationFactory
+      .onCreate(async (organization) => {
+        organization.name = `Custom ${organization.name}`
+        await organization.save({
+          hooks: false,
+        })
+        return organization
+      })
+      .params({
+        name: "packed organization",
+      })
+    const customOrganization: OrganizationRecord = await customPersistenceFactory.create()
+    const persistedCustomOrganization = await fixture.Organization.findByPk(customOrganization.id)
+    assert.equal(persistedCustomOrganization?.name, "Custom packed organization")
+
     console.log(
       "Packed Sequelize 6 consumer PASS: attributesFor, configured factories, supplied association builds, buildList, createList, nested includes, include replacement/clearing, and hook visibility"
     )
@@ -636,6 +651,14 @@ export function checkInstalledConsumerTypes(
   }))
   const defaultProject: ConcreteProjectRecord = defaultProjectFactory.build()
   void defaultProject
+
+  // @ts-expect-error Custom persistence must return the factory's model type.
+  defaultProjectFactory.onCreate(async () => "not a model")
+
+  const customFactory: FactoryInterface<ConcreteProjectRecord> = defaultProjectFactory.onCreate(
+    async (project) => project.save()
+  )
+  void customFactory
 
   const projectFactory = FactoryShark.define(Project, () => ({
     title: "Typed project",
