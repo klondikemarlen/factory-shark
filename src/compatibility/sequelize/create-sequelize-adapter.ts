@@ -29,7 +29,7 @@ export type SequelizeModelProtocol = {
 
 type SequelizeAssociationProtocol = FactoryAssociation & {
   target: {
-    findByPk(id: string | number): Promise<object | null>
+    findOne(options: { where: Record<string, string | number> }): Promise<object | null>
   }
 }
 
@@ -176,8 +176,12 @@ function createSequelizeAdapter<
       resolveSupportedVersion(modelClass)
       return getStatic(modelClass).associations[name]
     },
-    findByPk(association, id) {
-      return (association as SequelizeAssociationProtocol).target.findByPk(id)
+    findByTargetKey(association, value) {
+      return (association as SequelizeAssociationProtocol).target.findOne({
+        where: {
+          [association.targetKey]: value,
+        },
+      })
     },
     assertCompatibleModelClass(modelClass) {
       if (!isCompatibleModelClass(modelClass)) {

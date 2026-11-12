@@ -31,7 +31,8 @@ export class FactoryBuilder<
     private readonly defaultAssociations: Record<string, object> = {},
     private readonly afterCreateHooks: AfterCreateFn<T>[] = [],
     private readonly beforeCreateHooks: BeforeCreateFn<T>[] = [],
-    private readonly defaultInclude: unknown = undefined
+    private readonly defaultInclude: unknown = undefined,
+    private readonly persist?: (model: T) => Promise<T>
   ) {}
 
   build(params?: CoreFactoryParams<T, Attributes>): T {
@@ -75,7 +76,12 @@ export class FactoryBuilder<
       ...attributeBuilder.getBeforeCreateHooks(),
     ])
 
-    const savedModel = await this.adapter.save(model)
+    let savedModel: T
+    if (this.persist) {
+      savedModel = await this.persist(model)
+    } else {
+      savedModel = await this.adapter.save(model)
+    }
     await this.adapter.saveSuppliedCollections(savedModel)
     if (
       !isUndefined(this.defaultInclude) &&
@@ -149,6 +155,12 @@ export class FactoryBuilder<
     return this.clone({ beforeCreateHooks: [...this.beforeCreateHooks, hook] })
   }
 
+  onCreate(
+    persist: (model: T) => Promise<T>
+  ): FactoryInterface<T, Attributes, ModelClass, TransientParams> {
+    return this.clone({ persist })
+  }
+
   private createEvaluator(params?: CoreFactoryParams<T, Attributes>) {
     const mergedParams = { ...this.defaultAssociations, ...this.defaultParams, ...params }
     const factoryContext = new FactoryContext<T, Attributes, ModelClass>(
@@ -180,6 +192,7 @@ export class FactoryBuilder<
     afterCreateHooks?: AfterCreateFn<T>[]
     beforeCreateHooks?: BeforeCreateFn<T>[]
     defaultInclude?: unknown
+    persist?: (model: T) => Promise<T>
   }): FactoryInterface<T, Attributes, ModelClass, TransientParams> {
     let defaultInclude = this.defaultInclude
     if ("defaultInclude" in overrides) {
@@ -195,7 +208,8 @@ export class FactoryBuilder<
       overrides.defaultAssociations ?? this.defaultAssociations,
       overrides.afterCreateHooks ?? this.afterCreateHooks,
       overrides.beforeCreateHooks ?? this.beforeCreateHooks,
-      defaultInclude
+      defaultInclude,
+      overrides.persist ?? this.persist
     )
   }
 

@@ -8,6 +8,10 @@ FactoryShark needs two kinds of evidence: isolated scenarios for factory behavio
 
 Supplied-association build scenarios cover model identity and nested relationships, known and missing IDs, explicit foreign-key precedence, parameter precedence, and the absence of database access and create hooks. Both installed ORM consumers exercise supplied builds and scalar-only attribute extraction through the root API in each module format.
 
+Target-key scenarios exercise generated and supplied `belongsTo` parents and explicit foreign-key overrides against non-`id` primary keys and other unique target attributes. Build-time placeholders and persisted lookups must use the same metadata; ordinary `id` relationships retain the existing suite.
+
+Custom-persistence scenarios exercise `.onCreate()` within the normal factory lifecycle, including cloned configuration and failure propagation. Installed Sequelize 6/7 consumers compile the callback's model-specific return contract and run configured callbacks through both module formats. The authoring template demonstrates a direct insert while preserving before-create changes.
+
 Supplied-child scenarios cover `hasMany` arrays on both ORM families: parent foreign-key assignment, native child persistence, supplied model identity, parameter precedence, persisted-child ownership, hook/include ordering, and partial writes after failure. Builds must attach collections without database access. Installed consumers exercise typed child arrays and parent/child persistence in ESM and CommonJS.
 
 List scenarios cover persisted configured relationships, sequence continuity and clone isolation, zero-count side effects, sequential hooks with transient configuration, call-time overrides, and stopping on failure without rolling back earlier writes. Installed consumers exercise `createList` on both root and configured factories through both module/declaration branches; compile-only cases preserve model-specific list returns and reject invalid overrides.

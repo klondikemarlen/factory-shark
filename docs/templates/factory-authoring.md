@@ -1,6 +1,6 @@
 # Portable Factory Authoring
 
-Use these complete test-file examples with FactoryShark 2.7.0. For a quick introduction, start with the [README](https://github.com/klondikemarlen/factory-shark/blob/v2.7.0/README.md). This guide covers `belongsTo` dependencies, supplied `hasMany` children, opt-in subclass helpers, lifecycle hooks, lists, per-record creation, and eager loading. The examples use Sequelize 7; the same FactoryShark imports support Sequelize 6.
+Use these complete test-file examples with FactoryShark 2.8.0. For a quick introduction, start with the [README](https://github.com/klondikemarlen/factory-shark/blob/v2.8.0/README.md). This guide covers `belongsTo` dependencies, supplied `hasMany` children, opt-in subclass helpers, lifecycle hooks, custom persistence, lists, per-record creation, and eager loading. The examples use Sequelize 7; the same FactoryShark imports support Sequelize 6.
 
 ## Application-Owned Setup
 
@@ -12,7 +12,7 @@ The executable examples assume `@/models` exports initialized `Organization` and
 - `Project` has `id: CreationOptional<number>`, `title: string`, `note: string | null`, `organizationId: ForeignKey<OrganizationRecord["id"]>`, and `organization?: NonAttribute<OrganizationRecord>`, where `OrganizationRecord` is the instance type of `Organization`.
 - Both models use `timestamps: false`. `note` is nullable. Sequelize 7 registers `Organization.hasMany(Project, { as: "projects", foreignKey: "organizationId", inverse: { as: "organization" } })` before factory evaluation. This creates the inverse `belongsTo`; do not register a second incompatible inverse. Sequelize 6 instead registers both `Organization.hasMany(Project, { as: "projects", foreignKey: "organizationId" })` and `Project.belongsTo(Organization, { as: "organization", foreignKey: "organizationId" })`.
 
-The model annotations above are Sequelize types, not new FactoryShark requirements. Factory-created dependencies use `belongsTo` with an `id` primary key; supplied `hasMany` collections use the declared child model array. Eager loading through `.include()` is a separate native Sequelize query operation. The consumer verification fixtures supply real SQLite persistence. Shared Vitest setup resets the database before each test and enables global `describe`, `test`, and `expect`. Factory counters need not reset: assertions use explicit overrides rather than depending on a particular sequence position.
+The model annotations above are Sequelize types, not new FactoryShark requirements. Factory-created `belongsTo` dependencies use their association's `targetKey`, including non-`id` primary keys and other unique attributes. Supplied `hasMany` collections retain their `id`-key construction contract and use the declared child model array. Eager loading through `.include()` is a separate native Sequelize query operation. The consumer verification fixtures supply real SQLite persistence. Shared Vitest setup resets the database before each test and enables global `describe`, `test`, and `expect`. Factory counters need not reset: assertions use explicit overrides rather than depending on a particular sequence position.
 
 ## Factory Templates
 
@@ -530,6 +530,38 @@ describe("factories/project-factory.ts", () => {
     })
   })
 
+  describe("#onCreate", () => {
+    test("when persistence uses a direct insert, preserves before-create changes", async () => {
+      // Arrange
+      const configuredFactory = projectFactory.onCreate(async (project) => {
+        await Project.sequelize.queryInterface.bulkInsert(Project.table, [
+          {
+            id: 7601,
+            title: project.title,
+            note: project.note,
+            organizationId: project.organizationId,
+          },
+        ])
+        return Project.findByPk(7601, {
+          rejectOnEmpty: true,
+        })
+      })
+
+      // Act
+      await configuredFactory.create({
+        title: "  Directly inserted review  ",
+      })
+
+      // Assert
+      const projects = await Project.findAll()
+      expect(projects).toEqual([
+        expect.objectContaining({
+          title: "Directly inserted review",
+        }),
+      ])
+    })
+  })
+
   describe("#include", () => {
     test("when an existing parent is included, exposes it in the loaded payload", async () => {
       // Arrange
@@ -784,3 +816,7 @@ Each `.include()` call creates an independent builder and replaces its prior sel
 Loading uses `model.reload({ include: selection })` after the parent is saved and before any FactoryShark after-create hook. Hooks can inspect loaded relationships, and their later in-memory changes are not discarded by another automatic reload. This is a database read of existing rows, not Sequelize creation-time `include` for constructing nested records; it does not create additional dependencies. Related records created by an after-create hook or later at the call site still require an explicit reload.
 
 Without includes, creation performs no additional reload. `build`, `buildList`, and `attributesFor` ignore loading configuration and remain synchronous and database-free. Invalid selections and loading errors reject `create`, `createList`, or `createMany` before after-create hooks run; the already-saved parent and dependencies remain persisted.
+
+## Custom Persistence
+
+Use `.onCreate(async model => savedModel)` to replace only the configured factory's save operation. The direct-insert example bypasses native model save hooks but retains factory hooks and association resolution. Return a saved model of the same type with generated values hydrated. Returning a replacement instance requires preserving attached relationships that later lifecycle steps need. Configuration clones and lists retain the callback; associated factories need their own configuration, and already-built supplied children still use native saves. See [custom persistence](/docs/architecture/factory-evaluation.md#custom-persistence) for failure and ownership boundaries.

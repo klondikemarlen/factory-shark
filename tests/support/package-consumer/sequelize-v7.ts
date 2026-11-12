@@ -533,6 +533,21 @@ async function verifyRootConsumer(): Promise<void> {
       },
     ])
 
+    const customPersistenceFactory = organizationFactory
+      .onCreate(async (organization) => {
+        organization.name = `Custom ${organization.name}`
+        await organization.save({
+          hooks: false,
+        })
+        return organization
+      })
+      .params({
+        name: "packed organization",
+      })
+    const customOrganization: OrganizationRecord = await customPersistenceFactory.create()
+    const persistedCustomOrganization = await Organization.findByPk(customOrganization.id)
+    assert.equal(persistedCustomOrganization?.name, "Custom packed organization")
+
     console.log(
       "Packed Sequelize 7 consumer PASS: attributesFor, configured factories, supplied association builds, buildList, createList, nested includes, include replacement/clearing, and hook visibility"
     )
@@ -550,6 +565,14 @@ function checkRootConsumerTypes(
   }))
   const defaultOrganization: OrganizationRecord = defaultOrganizationFactory.build()
   void defaultOrganization
+
+  // @ts-expect-error Custom persistence must return the factory's model type.
+  defaultOrganizationFactory.onCreate(async () => "not a model")
+
+  const customFactory: FactoryInterface<OrganizationRecord> = defaultOrganizationFactory.onCreate(
+    async (organization) => organization.save()
+  )
+  void customFactory
 
   const organizationFactory = FactoryShark.define(Organization, ({ sequence }) => ({
     name: `Typed organization ${sequence}`,

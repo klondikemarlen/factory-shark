@@ -11,7 +11,7 @@ export type FactoryAdapter<T extends object, Attributes extends object, ModelCla
   markSaved(model: object): void
   get(model: object, key?: string): unknown
   association(modelClass: ModelClass, name: string): FactoryAssociation | undefined
-  findByPk(association: FactoryAssociation, id: string | number): Promise<object | null>
+  findByTargetKey(association: FactoryAssociation, value: string | number): Promise<object | null>
   assertCompatibleModelClass(modelClass: unknown): void
   modelName(modelClass: ModelClass): string
   associationNames(modelClass: ModelClass): string[]
@@ -20,4 +20,5 @@ export type FactoryAdapter<T extends object, Attributes extends object, ModelCla
 // The engine needs metadata only; each adapter owns its native association lookup.
 export type FactoryAssociation = {
   foreignKey?: string
+  targetKey: string
 }

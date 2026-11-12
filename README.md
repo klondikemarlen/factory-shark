@@ -7,7 +7,7 @@ FactoryShark grew out of using [Fishery](https://github.com/thoughtbot/fishery) 
 ## Install
 
 ```sh
-npm install --save-dev factory-shark@2.7.0
+npm install --save-dev factory-shark@2.8.0
 ```
 
 Use your application's Sequelize models and dialect. FactoryShark supports Node.js 22/24, Sequelize 6.37.8 (`sequelize`) and Sequelize 7.0.0-alpha.48 (`@sequelize/core`). You only need the ORM version your application uses. ESM and CommonJS are supported; TypeScript projects should use Node16 or NodeNext module resolution.
@@ -96,7 +96,7 @@ const anotherProject = await projectFactory.create({
 anotherProject.organizationId === savedOrganization.id // true
 ```
 
-The existing row is reused without creating another organization. `build()` preserves a supplied model's identity and uses its known ID to fill a missing foreign key; explicit foreign keys take precedence. `create()` may load a fresh instance of that row. Generated dependencies currently support `belongsTo` associations with an `id` primary key.
+The existing row is reused without creating another organization. `build()` preserves a supplied model's identity and uses its known association `targetKey` value to fill a missing foreign key; explicit foreign keys take precedence. `create()` may load a fresh instance of that row. Generated `belongsTo` dependencies support non-`id` primary keys and other unique target attributes. Declare `targetKey` in Sequelize using the model attribute name; Sequelize maps it to the database column.
 
 ## Reuse Configuration
 
@@ -183,7 +183,7 @@ children.every((child) => !child.isNewRecord) // true
 
 FactoryShark saves the parent, assigns its foreign key to each unsaved child, and saves the children. Supplied child instances retain their identity. Already-persisted children cannot be moved to another parent. With `build()`, the same array is attached but no records are saved.
 
-Declare collection properties as Sequelize `NonAttribute<Project[]>` on your model so TypeScript can check the supplied children. `hasOne`, through associations, and custom primary-key names are not supported for constructing these graphs.
+Declare collection properties as Sequelize `NonAttribute<Project[]>` on your model so TypeScript can check the supplied children. Supplied `hasMany` graphs retain their `id`-key construction contract; `hasOne` and through associations are not supported for construction.
 
 ## Transient Parameters
 
@@ -236,6 +236,28 @@ reviewedProject.note // "Reviewed"
 
 You can also register hooks inside the generator using its `beforeCreate` and `afterCreate` arguments. Chained hooks run before generator-registered hooks of the same kind. Hooks run on `create()`, `createList()`, and `createMany()`, not on builds or attribute extraction. After-create changes need an explicit `save()` if they should persist.
 
+## Customize Persistence
+
+Use `.onCreate()` when a factory needs a different persistence operation. The callback replaces only the save step; associations and before-create hooks run first, then the returned model continues through supplied children, includes, and after-create hooks:
+
+```typescript
+const withoutModelHooks = organizationFactory.onCreate(async (organization) => {
+  await organization.save({
+    hooks: false,
+  })
+  return organization
+})
+
+const customSavedOrganization = await withoutModelHooks.create({
+  name: "Imported office",
+})
+customSavedOrganization.isNewRecord // false
+```
+
+For another writer such as Knex, insert the attributes with your application's column mapping, hydrate database-generated values, and return a saved Sequelize model of the same type. Return the input model to preserve attached relationships; if returning a replacement, carry over any relationships needed by later steps. The callback owns database validation, native model hooks, and transactions; FactoryShark still runs its factory hooks.
+
+Configuration clones and list operations retain the callback. Builds and attribute extraction ignore it. Configure associated factories separately; supplied child instances still use native Sequelize saves. A callback failure stops subsequent steps without rolling back earlier writes.
+
 ## Load Relationships
 
 Use `.include()` when the code under test needs relationships loaded from the database:
@@ -275,11 +297,11 @@ test("finds an organization by its name", async () => {
 
 FactoryShark does not wrap a graph or list in a transaction. A failed save, hook, or reload stops subsequent work and propagates the error, but earlier writes remain. Reset or clean your test database between tests.
 
-For complete test-file examples and optional subclass builders, see the [factory-authoring guide](https://github.com/klondikemarlen/factory-shark/blob/v2.7.0/docs/templates/factory-authoring.md). See the [changelog](https://github.com/klondikemarlen/factory-shark/blob/v2.7.0/CHANGELOG.md) for release history and [compatibility notes](https://github.com/klondikemarlen/factory-shark/blob/v2.7.0/docs/architecture/sequelize-compatibility.md) for supported Sequelize ranges.
+For complete test-file examples and optional subclass builders, see the [factory-authoring guide](https://github.com/klondikemarlen/factory-shark/blob/v2.8.0/docs/templates/factory-authoring.md). See the [changelog](https://github.com/klondikemarlen/factory-shark/blob/v2.8.0/CHANGELOG.md) for release history and [compatibility notes](https://github.com/klondikemarlen/factory-shark/blob/v2.8.0/docs/architecture/sequelize-compatibility.md) for supported Sequelize ranges.
 
 ## Contribute
 
-See [CONTRIBUTING.md](https://github.com/klondikemarlen/factory-shark/blob/v2.7.0/CONTRIBUTING.md) for development setup and checks, and the [project knowledge base](https://github.com/klondikemarlen/factory-shark/blob/v2.7.0/docs/README.md) for architecture.
+See [CONTRIBUTING.md](https://github.com/klondikemarlen/factory-shark/blob/v2.8.0/CONTRIBUTING.md) for development setup and checks, and the [project knowledge base](https://github.com/klondikemarlen/factory-shark/blob/v2.8.0/docs/README.md) for architecture.
 
 ## Name
 
