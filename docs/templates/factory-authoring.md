@@ -1,6 +1,6 @@
 # Portable Factory Authoring
 
-Use these complete test-file examples with FactoryShark 2.6.2. For a quick introduction, start with the [README](https://github.com/klondikemarlen/factory-shark/blob/v2.6.2/README.md). This guide covers `belongsTo` dependencies, supplied `hasMany` children, opt-in subclass helpers, lifecycle hooks, lists, and eager loading. The examples use Sequelize 7; the same FactoryShark imports support Sequelize 6.
+Use these complete test-file examples with FactoryShark 2.7.0. For a quick introduction, start with the [README](https://github.com/klondikemarlen/factory-shark/blob/v2.7.0/README.md). This guide covers `belongsTo` dependencies, supplied `hasMany` children, opt-in subclass helpers, lifecycle hooks, lists, per-record creation, and eager loading. The examples use Sequelize 7; the same FactoryShark imports support Sequelize 6.
 
 ## Application-Owned Setup
 
@@ -91,7 +91,7 @@ const projectFactory = new ProjectFactory(
 export default projectFactory
 ```
 
-`withNote` is opt-in configuration, not a model requirement. It returns the public `FactoryInterface<ProjectRecord, ProjectTransientParams>` from `this.params`. Call custom methods on the original subclass instance first. The resulting configured builders retain the public factory API, including `transient`, `include`, hooks, `buildList`, and `createList`, but do not expose subclass methods such as `withNote`.
+`withNote` is opt-in configuration, not a model requirement. It returns the public `FactoryInterface<ProjectRecord, ProjectTransientParams>` from `this.params`. Call custom methods on the original subclass instance first. The resulting configured builders retain the public factory API, including `transient`, `include`, hooks, `buildList`, `createList`, and `createMany`, but do not expose subclass methods such as `withNote`.
 
 Transient parameters steer generation and hooks; they are not model columns. The empty constructor defaults make both transient options optional. Each original factory or configured clone owns a sequence starting at 1; each evaluation advances that builder's sequence once. A generator runs once per `build`, `attributesFor`, or `create` evaluation. Sequence-derived values are convenient defaults, not a database-wide uniqueness guarantee.
 
@@ -653,6 +653,65 @@ describe("factories/project-factory.ts", () => {
     })
   })
 
+  describe("#createMany", () => {
+    test("when literal attributes differ, returns projects in input order", async () => {
+      // Arrange
+      const attributes = [
+        {
+          title: "Budget review",
+        },
+        {
+          title: "Schedule review",
+        },
+      ]
+
+      // Act
+      const projects = await projectFactory.createMany(attributes)
+
+      // Assert
+      expect(projects).toEqual([
+        expect.objectContaining({
+          title: "Budget review",
+        }),
+        expect.objectContaining({
+          title: "Schedule review",
+        }),
+      ])
+    })
+
+    test("when a helper is configured, persists each literal override and default", async () => {
+      // Arrange
+      const configuredFactory = projectFactory.withNote("Shared annotation")
+      const attributes = [
+        {
+          title: "Budget review",
+        },
+        {
+          title: "Schedule review",
+          note: "Schedule annotation",
+        },
+      ]
+
+      // Act
+      await configuredFactory.createMany(attributes)
+
+      // Assert
+      const projects = await Project.findAll({
+        order: [["id", "ASC"]],
+      })
+      expect(projects).toEqual([
+        expect.objectContaining({
+          title: "Budget review",
+          note: "Shared annotation",
+        }),
+        expect.objectContaining({
+          title: "Schedule review",
+          note: "Schedule annotation",
+        }),
+      ])
+    })
+  })
+
   describe("#attributesFor", () => {
     test("when a foreign key is supplied, returns request attributes", () => {
       // Arrange
@@ -704,6 +763,8 @@ To reuse a persisted parent during `create`, pass its foreign key or configure `
 
 `createList(count, params?)` is available on both the root factory and configured builders. It awaits each `create` sequentially on the same builder, preserving configuration, sequence progression, hook behavior, and result order. Supply a nonnegative integer; zero returns an empty array without evaluation or writes. The first error rejects the list and stops later items, but earlier writes remain. Neither list creation nor association-graph creation adds a transaction; the application owns isolation and cleanup.
 
+Choose `createMany(paramsList)` when each record needs distinct literal attributes, as in the budget and schedule reviews above; choose `createList(count, params?)` when every record shares the same overrides. Original and configured factories accept a readonly array of model-specific parameter objects and return `Promise<T[]>` in input order without mutating the inputs. `createMany` awaits each complete `create(params)` lifecycle on the same builder before starting the next, retaining configured associations, parameter precedence, transient settings, includes, hooks, and sequence progression into later calls. An empty array returns `[]` without generator evaluations, hooks, or database work. The first failure rejects and prevents later items from starting; earlier records and any partial writes from the failing item remain. There is no added concurrency, bulk insertion, or implicit transaction.
+
 Since 2.2.0, `attributesFor(params?)` returns the raw attributes from one unsaved build, typed as the model's creation attributes. It runs no create hooks and performs no database reads or writes. It preserves Date values and Buffer bytes without serialization or custom-getter evaluation. Association model properties attached outside raw `dataValues` are excluded, including supplied models, generated associations, and foreign-key placeholders. Explicit foreign keys and keys inferred from supplied models remain in the payload; a known ID does not prove that a row exists. This is not recursive JSON serialization: choose the fields your endpoint accepts rather than assuming every raw model attribute is an API input.
 
 ## Supplied Child Collections
@@ -718,8 +779,8 @@ An already-persisted child may be reused only if its foreign key already referen
 
 Use `.include(selection)` on the original factory or any configured builder to request Sequelize eager loading. It accepts the supplied model's native reload include type: association names, model classes, association objects, include option objects, and arrays, including nested `include` selections. For aliased relationships, prefer the association name or an object containing `association` (or `model` and `as`); Sequelize validates the selection. Keep includes separate from model attributes and application transient parameters.
 
-Each `.include()` call creates an independent builder and replaces its prior selection; `.include(undefined)` or `.include([])` disables loading on that new builder. Other configuration methods and `createList` retain the selection. Treat selection objects as configuration values rather than mutating them after passing them to the factory.
+Each `.include()` call creates an independent builder and replaces its prior selection; `.include(undefined)` or `.include([])` disables loading on that new builder. Other configuration methods, `createList`, and `createMany` retain the selection. Treat selection objects as configuration values rather than mutating them after passing them to the factory.
 
 Loading uses `model.reload({ include: selection })` after the parent is saved and before any FactoryShark after-create hook. Hooks can inspect loaded relationships, and their later in-memory changes are not discarded by another automatic reload. This is a database read of existing rows, not Sequelize creation-time `include` for constructing nested records; it does not create additional dependencies. Related records created by an after-create hook or later at the call site still require an explicit reload.
 
-Without includes, creation performs no additional reload. `build`, `buildList`, and `attributesFor` ignore loading configuration and remain synchronous and database-free. Invalid selections and loading errors reject `create` or `createList` before after-create hooks run; the already-saved parent and dependencies remain persisted.
+Without includes, creation performs no additional reload. `build`, `buildList`, and `attributesFor` ignore loading configuration and remain synchronous and database-free. Invalid selections and loading errors reject `create`, `createList`, or `createMany` before after-create hooks run; the already-saved parent and dependencies remain persisted.

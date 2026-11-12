@@ -7,7 +7,7 @@ FactoryShark grew out of using [Fishery](https://github.com/thoughtbot/fishery) 
 ## Install
 
 ```sh
-npm install --save-dev factory-shark@2.6.2
+npm install --save-dev factory-shark@2.7.0
 ```
 
 Use your application's Sequelize models and dialect. FactoryShark supports Node.js 22/24, Sequelize 6.37.8 (`sequelize`) and Sequelize 7.0.0-alpha.48 (`@sequelize/core`). You only need the ORM version your application uses. ESM and CommonJS are supported; TypeScript projects should use Node16 or NodeNext module resolution.
@@ -138,6 +138,22 @@ savedProjects.every((savedProject) => !savedProject.isNewRecord) // true
 
 `buildList()` returns distinct unsaved instances synchronously. `createList()` saves items sequentially and returns a promise. Both retain the configured factory's associations, overrides, and sequence progression. Supply a nonnegative integer count; zero returns an empty array without evaluating the generator.
 
+Use `createMany()` when each record needs different attributes rather than one repeated override:
+
+```typescript
+const seasonalProjects = await surveyFactory.createMany([
+  {
+    title: "Winter survey",
+  },
+  {
+    title: "Summer survey",
+  },
+])
+seasonalProjects.map((project) => project.title) // ["Winter survey", "Summer survey"]
+```
+
+Original and configured factories accept mutable or readonly attribute arrays. Each item uses the same factory's `create()` lifecycle sequentially, including associations, transient parameters, includes, and awaited hooks. Results follow input order without mutating the input objects. Empty input returns `[]`; a failure stops later records but leaves earlier writes intact.
+
 ## Get Attributes Without a Model
 
 Use `attributesFor()` when the code under test accepts plain attributes instead of a Sequelize instance:
@@ -218,7 +234,7 @@ reviewedProject.title // "Field review"
 reviewedProject.note // "Reviewed"
 ```
 
-You can also register hooks inside the generator using its `beforeCreate` and `afterCreate` arguments. Chained hooks run before generator-registered hooks of the same kind. Hooks run on `create()` and `createList()`, not on builds or attribute extraction. After-create changes need an explicit `save()` if they should persist.
+You can also register hooks inside the generator using its `beforeCreate` and `afterCreate` arguments. Chained hooks run before generator-registered hooks of the same kind. Hooks run on `create()`, `createList()`, and `createMany()`, not on builds or attribute extraction. After-create changes need an explicit `save()` if they should persist.
 
 ## Load Relationships
 
@@ -259,11 +275,11 @@ test("finds an organization by its name", async () => {
 
 FactoryShark does not wrap a graph or list in a transaction. A failed save, hook, or reload stops subsequent work and propagates the error, but earlier writes remain. Reset or clean your test database between tests.
 
-For complete test-file examples and optional subclass builders, see the [factory-authoring guide](https://github.com/klondikemarlen/factory-shark/blob/v2.6.2/docs/templates/factory-authoring.md). See the [changelog](https://github.com/klondikemarlen/factory-shark/blob/v2.6.2/CHANGELOG.md) for release history and [compatibility notes](https://github.com/klondikemarlen/factory-shark/blob/v2.6.2/docs/architecture/sequelize-compatibility.md) for supported Sequelize ranges.
+For complete test-file examples and optional subclass builders, see the [factory-authoring guide](https://github.com/klondikemarlen/factory-shark/blob/v2.7.0/docs/templates/factory-authoring.md). See the [changelog](https://github.com/klondikemarlen/factory-shark/blob/v2.7.0/CHANGELOG.md) for release history and [compatibility notes](https://github.com/klondikemarlen/factory-shark/blob/v2.7.0/docs/architecture/sequelize-compatibility.md) for supported Sequelize ranges.
 
 ## Contribute
 
-See [CONTRIBUTING.md](https://github.com/klondikemarlen/factory-shark/blob/v2.6.2/CONTRIBUTING.md) for development setup and checks, and the [project knowledge base](https://github.com/klondikemarlen/factory-shark/blob/v2.6.2/docs/README.md) for architecture.
+See [CONTRIBUTING.md](https://github.com/klondikemarlen/factory-shark/blob/v2.7.0/CONTRIBUTING.md) for development setup and checks, and the [project knowledge base](https://github.com/klondikemarlen/factory-shark/blob/v2.7.0/docs/README.md) for architecture.
 
 ## Name
 
