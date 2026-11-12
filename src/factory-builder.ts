@@ -103,6 +103,17 @@ export class FactoryBuilder<
     return models
   }
 
+  async createMany(paramsList: readonly CoreFactoryParams<T, Attributes>[]): Promise<T[]> {
+    const models: T[] = []
+
+    for (const params of paramsList) {
+      const model = await this.create(params)
+      models.push(model)
+    }
+
+    return models
+  }
+
   include(selection: unknown): FactoryInterface<T, Attributes, ModelClass, TransientParams> {
     return this.clone({ defaultInclude: selection })
   }

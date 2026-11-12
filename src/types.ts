@@ -9,6 +9,7 @@ export type FactoryInterface<
   attributesFor(params?: CoreFactoryParams<T, Attributes>): Attributes
   create(params?: CoreFactoryParams<T, Attributes>): Promise<T>
   createList(count: number, params?: CoreFactoryParams<T, Attributes>): Promise<T[]>
+  createMany(paramsList: readonly CoreFactoryParams<T, Attributes>[]): Promise<T[]>
   include(selection: unknown): FactoryInterface<T, Attributes, ModelClass, TransientParams>
   associations<A extends object>(
     associations: SuppliedAssociations<T, A>
