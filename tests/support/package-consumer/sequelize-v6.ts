@@ -520,6 +520,100 @@ async function verifyInstalledConsumer(): Promise<void> {
     assert.equal(await fixture.Organization.count(), 4)
     assert.equal(await fixture.Category.count(), 7)
 
+    // Arrange
+    const manyParams: readonly FactoryParams<ConcreteProjectRecord>[] = [
+      {
+        title: "First literal project",
+        nullableNote: "First literal note",
+        organizationId: existingOrganization.id,
+      },
+      {
+        title: "Second literal project",
+        nullableNote: "Second literal note",
+        organizationId: existingOrganization.id,
+      },
+    ]
+
+    // Act
+    const manyProjects: ConcreteProjectRecord[] =
+      await fixture.projectFactory.createMany(manyParams)
+
+    // Assert
+    assert.deepEqual(
+      manyProjects.map((project) => project.displayTitle()),
+      ["First literal project", "Second literal project"]
+    )
+    const manyProjectIds = manyProjects.map((project) => project.id)
+    const persistedManyProjects = await fixture.Project.findAll({
+      attributes: ["title", "nullableNote", "organizationId"],
+      where: {
+        id: manyProjectIds,
+      },
+      order: [["id", "ASC"]],
+      raw: true,
+    })
+    assert.deepEqual(persistedManyProjects, [
+      {
+        title: "First literal project",
+        nullableNote: "First literal note",
+        organizationId: existingOrganization.id,
+      },
+      {
+        title: "Second literal project",
+        nullableNote: "Second literal note",
+        organizationId: existingOrganization.id,
+      },
+    ])
+
+    // Arrange
+    const configuredManyFactory = fixture.projectFactory
+      .associations({
+        organization: existingOrganization,
+      })
+      .params({
+        nullableNote: "Configured many note",
+      })
+    const configuredManyParams: readonly FactoryParams<ConcreteProjectRecord>[] = [
+      {
+        title: "First configured literal",
+      },
+      {
+        title: "Second configured literal",
+        nullableNote: "Per-record override",
+      },
+    ]
+
+    // Act
+    const configuredManyProjects: ConcreteProjectRecord[] =
+      await configuredManyFactory.createMany(configuredManyParams)
+
+    // Assert
+    assert.deepEqual(
+      configuredManyProjects.map((project) => project.displayTitle()),
+      ["First configured literal", "Second configured literal"]
+    )
+    const configuredManyProjectIds = configuredManyProjects.map((project) => project.id)
+    const persistedConfiguredManyProjects = await fixture.Project.findAll({
+      attributes: ["title", "nullableNote", "organizationId"],
+      where: {
+        id: configuredManyProjectIds,
+      },
+      order: [["id", "ASC"]],
+      raw: true,
+    })
+    assert.deepEqual(persistedConfiguredManyProjects, [
+      {
+        title: "First configured literal",
+        nullableNote: "Configured many note",
+        organizationId: existingOrganization.id,
+      },
+      {
+        title: "Second configured literal",
+        nullableNote: "Per-record override",
+        organizationId: existingOrganization.id,
+      },
+    ])
+
     console.log(
       "Packed Sequelize 6 consumer PASS: attributesFor, configured factories, supplied association builds, buildList, createList, nested includes, include replacement/clearing, and hook visibility"
     )
@@ -596,6 +690,34 @@ export function checkInstalledConsumerTypes(
   )
   void configuredProjects
   void createdTitle
+  const manyParams: readonly FactoryParams<ConcreteProjectRecord>[] = [
+    {
+      title: "Typed first literal",
+    },
+    {
+      title: "Typed second literal",
+      nullableNote: null,
+    },
+  ]
+  const manyProjects: Promise<ConcreteProjectRecord[]> = projectFactory.createMany(manyParams)
+  const configuredManyProjects: Promise<ConcreteProjectRecord[]> = factoryContract
+    .params({
+      nullableNote: "Configured literal defaults",
+    })
+    .createMany(manyParams)
+  const manyTitle: Promise<string> = manyProjects.then((projects) => projects[0].displayTitle())
+  void configuredManyProjects
+  void manyTitle
+
+  // @ts-expect-error Per-record parameters reject unknown attribute names.
+  projectFactory.createMany([{ unknownAttribute: true }])
+
+  // @ts-expect-error Configured per-record parameters preserve scalar types.
+  factoryContract.params({}).createMany([{ title: 42 }])
+
+  // @ts-expect-error Per-record creation requires an array, not a count.
+  projectFactory.createMany(2)
+
   void project
   void modelClass
   void chainedModelClass

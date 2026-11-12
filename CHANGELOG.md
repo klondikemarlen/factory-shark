@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.7.0
+
+- Create distinct persisted fixtures with `createMany(paramsList)` on original and configured factories. Each input object uses the normal create lifecycle sequentially, preserving overrides, associations, hooks, and sequence progression. Empty input does no work; failures stop later records without rolling back earlier writes.
+
 ## 2.6.2
 
 - Teach factory usage directly in the README with definitions, overrides, associations, lists, transient parameters, hooks, and eager loading. Keep complete test templates as optional deeper reading instead of requiring version lookup or an export inventory.

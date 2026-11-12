@@ -43,6 +43,7 @@ export type FactoryInterface<
   attributesFor(params?: FactoryParams<T>): InferCreationAttributes<T>
   create(params?: FactoryParams<T>): Promise<T>
   createList(count: number, params?: FactoryParams<T>): Promise<T[]>
+  createMany(paramsList: readonly FactoryParams<T>[]): Promise<T[]>
   include(
     selection: FactoryInclude<T> | undefined
   ): FactoryInterface<T, TransientParams, ModelClass>
@@ -126,6 +127,10 @@ export class FactoryShark<
 
   async createList(count: number, params?: FactoryParams<T>): Promise<T[]> {
     return this.builder.createList(count, params)
+  }
+
+  async createMany(paramsList: readonly FactoryParams<T>[]): Promise<T[]> {
+    return this.builder.createMany(paramsList)
   }
 
   include(
