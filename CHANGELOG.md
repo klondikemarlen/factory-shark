@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.8.0
+
+- Resolve generated and supplied `belongsTo` parents through Sequelize's `targetKey`, including non-`id` primary keys and unique target attributes. Explicit foreign-key overrides use that same key for placeholders and database lookup.
+- Customize a factory's save step with chainable `.onCreate(async model => savedModel)` while preserving association resolution, before/after hooks, includes, and sequential list creation. Custom callbacks own persistence and return a saved Sequelize model; builds remain database-free.
+
 ## 2.7.0
 
 - Create distinct persisted fixtures with `createMany(paramsList)` on original and configured factories. Each input object uses the normal create lifecycle sequentially, preserving overrides, associations, hooks, and sequence progression. Empty input does no work; failures stop later records without rolling back earlier writes.
