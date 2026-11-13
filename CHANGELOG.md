@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Document model-local configuration for existing UTC SQL Server `datetime` columns, allowing standard FactoryShark 2.8.0 creation without a custom persistence writer. Runtime behavior and package dependencies are unchanged.
+
 ## 2.8.0
 
 - Resolve generated and supplied `belongsTo` parents through Sequelize's `targetKey`, including non-`id` primary keys and unique target attributes. Explicit foreign-key overrides use that same key for placeholders and database lookup.
