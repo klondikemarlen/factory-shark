@@ -4,7 +4,7 @@ Use this folder to understand FactoryShark's design and maintain its behavior. F
 
 - [Factory authoring templates](/docs/templates/factory-authoring.md): canonical reusable definitions, associations, builders, hooks, and list examples; use the matching release tag when consuming a published package.
 - [Factory evaluation](/docs/architecture/factory-evaluation.md): generation, association persistence, parameter precedence, hooks, and ownership boundaries.
-- [Sequelize compatibility](/docs/architecture/sequelize-compatibility.md): model-driven integration, tested versions, and qualifying future releases without duplicating the factory engine.
+- [Sequelize compatibility](/docs/architecture/sequelize-compatibility.md): model-driven integration, tested versions, qualifying future releases, and [existing SQL Server `datetime` columns](/docs/architecture/sequelize-compatibility.md#existing-sql-server-datetime-columns).
 - [Why a Sequelize-specific factory](/docs/decisions/sequelize-factory-design.md): the problem behind the design, the familiar Fishery interface, and the name.
 - [Consumer verification](/docs/qa-scenarios/package-consumer.md): what the isolated scenarios and installed-package smoke prove.
 
